@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!-- Migração do Livrai desktop: esta página é aberta INVISÍVEL, uma única vez,
+     na origem antiga (file://) só pra exportar os projetos guardados lá e
+     entregá-los à nova origem (http://localhost). Nada sai do computador. -->
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><title>Migração Livrai</title></head>
+<body>
+<script>
+  const { ipcRenderer } = require('electron');
+
+  function blobToB64(blob) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
+      fr.onerror = () => reject(fr.error);
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  async function exportAll() {
+    const req = indexedDB.open('estudio-entregas');
+    const db = await new Promise((resolve, reject) => {
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    const names = ['projects', 'items', 'clients', 'blobs'];
+    const out = { app: 'estudio', version: 1, savedAt: Date.now() };
+    for (const name of names) {
+      if (!db.objectStoreNames.contains(name)) {
+        out[name] = [];
+        continue;
+      }
+      const all = await new Promise((resolve, reject) => {
+        const r = db.transaction(name, 'readonly').objectStore(name).getAll();
+        r.onsuccess = () => resolve(r.result || []);
+        r.onerror = () => reject(r.error);
+      });
+      out[name] = all;
+    }
+    const blobsB64 = [];
+    for (const b of out.blobs) {
+      try {
+        blobsB64.push({ id: b.id, type: b.blob.type, data: await blobToB64(b.blob) });
+      } catch (_) {}
+    }
+    out.blobs = blobsB64;
+    return out;
+  }
+
+  exportAll()
+    .then((payload) => ipcRenderer.send('livrai-migration', payload))
+    .catch(() => ipcRenderer.send('livrai-migration', null));
+</script>
+</body>
+</html>

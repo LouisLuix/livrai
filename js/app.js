@@ -112,9 +112,29 @@
     }, Math.max(0, 1250 - shown));
   }
 
+  /* App desktop: a versão anterior guardava os projetos noutra origem.
+     O Livrai exporta uma única vez e deixa em /__migration — importamos aqui. */
+  async function consumeDesktopMigration() {
+    if (location.protocol !== 'http:') return;
+    try {
+      const r = await fetch('/__migration', { cache: 'no-store' });
+      if (!r.ok) return;
+      const data = await r.json();
+      if (data && Array.isArray(data.projects) && data.projects.length && E.sync) {
+        await E.sync.applyData(data);
+        E.ui.toast('Seus projetos da versão anterior foram migrados');
+      }
+      fetch('/__migration?done=1').catch(() => {});
+    } catch (_) {}
+  }
+
   async function boot() {
     try {
-      const projects = await E.db.getAll('projects');
+      let projects = await E.db.getAll('projects');
+      if (!projects.length) {
+        await consumeDesktopMigration();
+        projects = await E.db.getAll('projects');
+      }
       if (!projects.length) await seed();
       showGallery();
       hideSplash();

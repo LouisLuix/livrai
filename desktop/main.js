@@ -3,7 +3,7 @@
    MODO DE ATUALIZAÇÃO AO VIVO: se a pasta de desenvolvimento existir,
    o app carrega as ferramentas direto dela — novas ferramentas chegam
    com ⌘R, sem reinstalar. Senão, usa a cópia embutida. */
-const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -11,6 +11,12 @@ const http = require('http');
 const https = require('https');
 const { exec, execFile } = require('child_process');
 
+// Identidade de navegador comum — sem isso o Google bloqueia o login
+app.userAgentFallback = app.userAgentFallback
+  .replace(/\slivrai\/\S+/i, '')
+  .replace(/\sElectron\/\S+/, '');
+
+const APP_PORT = 8788; // fixo: a "origem" (e os dados) dependem dele
 const DEV_DIR = path.join(os.homedir(), 'Desktop', 'ORGANIZADOR DE ENTREGAS');
 const liveMode = fs.existsSync(path.join(DEV_DIR, 'index.html'));
 const APP_DIR = liveMode ? DEV_DIR : path.join(__dirname, 'app');
@@ -56,6 +62,104 @@ function startProxy() {
   });
   server.on('error', () => {}); // porta ocupada = já tem proxy rodando
   server.listen(8787, '127.0.0.1');
+}
+
+/* ---------- servidor local do app ----------
+   Servir por http://localhost (em vez de file://) dá ao app uma origem real:
+   o login com Google passa a funcionar e o armazenamento fica estável. */
+const MIGRATION_FILE = () => path.join(app.getPath('userData'), 'livrai-migration.json');
+
+function startAppServer() {
+  const MIME = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.txt': 'text/plain; charset=utf-8',
+    '.woff2': 'font/woff2',
+  };
+  const root = path.resolve(APP_DIR);
+  const server = http.createServer((req, res) => {
+    const u = new URL(req.url, 'http://localhost');
+    if (u.pathname === '/__migration') {
+      // entrega (e depois apaga) os projetos exportados da versão antiga
+      if (u.searchParams.get('done')) {
+        try { fs.unlinkSync(MIGRATION_FILE()); } catch (_) {}
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+      if (fs.existsSync(MIGRATION_FILE())) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        fs.createReadStream(MIGRATION_FILE()).pipe(res);
+      } else {
+        res.writeHead(404);
+        res.end();
+      }
+      return;
+    }
+    let p = decodeURIComponent(u.pathname);
+    if (p === '/') p = '/index.html';
+    const file = path.resolve(path.join(root, p));
+    if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+      res.writeHead(404);
+      res.end('não encontrado');
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream' });
+    fs.createReadStream(file).pipe(res);
+  });
+  server.on('error', () => {}); // porta ocupada = outra instância já serve
+  server.listen(APP_PORT, '127.0.0.1');
+}
+
+/* ---------- migração da origem antiga (file://) ----------
+   Versões anteriores guardavam os projetos sob file://. Uma única vez,
+   abrimos uma janela invisível lá, exportamos tudo e deixamos no
+   /__migration pro app importar. Ninguém perde nada. */
+function runMigration() {
+  return new Promise((resolve) => {
+    const marker = path.join(app.getPath('userData'), 'livrai-migrated.txt');
+    if (fs.existsSync(marker)) return resolve();
+    let hasOld = false;
+    try {
+      hasOld = fs
+        .readdirSync(path.join(app.getPath('userData'), 'IndexedDB'))
+        .some((n) => n.startsWith('file__0.indexeddb'));
+    } catch (_) {}
+    if (!hasOld) {
+      try { fs.writeFileSync(marker, 'fresh'); } catch (_) {}
+      return resolve();
+    }
+    const migratePage = path.join(APP_DIR, 'migrate.html');
+    if (!fs.existsSync(migratePage)) {
+      try { fs.writeFileSync(marker, 'sem-pagina'); } catch (_) {}
+      return resolve();
+    }
+    const hidden = new BrowserWindow({
+      show: false,
+      webPreferences: { nodeIntegration: true, contextIsolation: false },
+    });
+    let settled = false;
+    function done(payload) {
+      if (settled) return;
+      settled = true;
+      try {
+        if (payload && Array.isArray(payload.projects) && payload.projects.length) {
+          fs.writeFileSync(MIGRATION_FILE(), JSON.stringify(payload));
+        }
+        fs.writeFileSync(marker, 'ok');
+      } catch (_) {}
+      try { hidden.destroy(); } catch (_) {}
+      resolve();
+    }
+    ipcMain.once('livrai-migration', (e, payload) => done(payload));
+    setTimeout(() => done(null), 15000);
+    hidden.loadFile(migratePage);
+  });
 }
 
 /* ---------- ponte do Photoshop (substitui photoshop-bridge.sh) ---------- */
@@ -143,8 +247,19 @@ function createWindow() {
     title: 'Livrai',
     backgroundColor: '#0d0d10',
   });
-  win.loadFile(path.join(APP_DIR, 'index.html'));
+  win.loadURL('http://localhost:' + APP_PORT + '/index.html');
   win.webContents.setWindowOpenHandler(({ url }) => {
+    // o popup de login (Google/Firebase) precisa abrir DENTRO do app
+    if (
+      url.indexOf('firebaseapp.com') >= 0 ||
+      url.indexOf('accounts.google.com') >= 0 ||
+      url.indexOf('google.com/o/oauth') >= 0
+    ) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: { width: 520, height: 680, autoHideMenuBar: true },
+      };
+    }
     if (url.startsWith('http')) shell.openExternal(url);
     return { action: 'deny' };
   });
@@ -191,9 +306,11 @@ function createWindow() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   startProxy();
+  startAppServer();
   startPhotoshopBridge();
+  await runMigration();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

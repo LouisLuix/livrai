@@ -21,7 +21,7 @@ echo
 echo "1/4  Copiando as ferramentas atuais para dentro do app..."
 cd "$BASE/desktop"
 rm -rf app && mkdir app
-cp -R "$BASE/index.html" "$BASE/LEIA-ME.txt" "$BASE/css" "$BASE/js" app/
+cp -R "$BASE/index.html" "$BASE/LEIA-ME.txt" "$BASE/migrate.html" "$BASE/version.json" "$BASE/css" "$BASE/js" app/
 
 echo "2/4  Subindo o número da versão..."
 npm version patch --no-git-tag-version > /dev/null
