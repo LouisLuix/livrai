@@ -1,0 +1,618 @@
+/* Renderização e edição dos itens do canvas: nota, imagem, link, cor, título e post */
+(function () {
+  const E = window.Estudio;
+  E.items = {};
+
+  /* Mídias de um post (carrossel) — compatível com posts antigos de imagem única */
+  E.items.postMedia = function (c) {
+    if (c && Array.isArray(c.media) && c.media.length) return c.media;
+    if (c && c.blobId) return [{ blobId: c.blobId, kind: 'image' }];
+    return [];
+  };
+
+  E.items.position = function (el, item) {
+    el.style.left = item.x + 'px';
+    el.style.top = item.y + 'px';
+    el.style.width = item.w + 'px';
+    el.style.height = item.h + 'px';
+    el.style.zIndex = item.z || 1;
+    if (item.kind === 'label') {
+      el.style.fontSize = Math.max(14, Math.round(item.h * 0.55)) + 'px';
+    }
+  };
+
+  E.items.render = function (item, onChange) {
+    const el = document.createElement('div');
+    el.className = 'item item-' + item.kind;
+    el.dataset.id = item.id;
+
+    const body = document.createElement('div');
+    body.className = 'item-body';
+    el.appendChild(body);
+
+    const handle = document.createElement('div');
+    handle.className = 'handle';
+    el.appendChild(handle);
+
+    E.items.refreshBody(item, el, onChange);
+    E.items.position(el, item);
+    return el;
+  };
+
+  E.items.refreshBody = function (item, el, onChange) {
+    const body = el.querySelector('.item-body');
+    body.innerHTML = '';
+    body.className = 'item-body';
+    body.style.background = '';
+    const c = item.content || {};
+
+    if (item.kind === 'note') {
+      const t = document.createElement('div');
+      t.className = 'note-text';
+      t.textContent = c.text || '';
+      body.appendChild(t);
+    } else if (item.kind === 'label') {
+      const t = document.createElement('span');
+      t.className = 'label-text';
+      t.textContent = c.text || 'Título';
+      body.appendChild(t);
+    } else if (item.kind === 'image') {
+      const img = document.createElement('img');
+      img.draggable = false;
+      img.alt = '';
+      E.db.blobUrl(c.blobId).then((u) => {
+        if (u) img.src = u;
+      });
+      body.appendChild(img);
+    } else if (item.kind === 'link') {
+      if (item._edit || !c.url) {
+        // edição dentro do próprio card — sem popup
+        body.classList.add('link-editing');
+        const ti = document.createElement('input');
+        ti.type = 'text';
+        ti.className = 'link-input';
+        ti.placeholder = 'Nome (opcional)';
+        ti.value = c.title || '';
+        const ui = document.createElement('input');
+        ui.type = 'text';
+        ui.className = 'link-input link-url-input';
+        ui.placeholder = 'Cole o link: https://…';
+        ui.value = c.url || '';
+        const ok = document.createElement('button');
+        ok.type = 'button';
+        ok.className = 'btn primary link-ok';
+        ok.textContent = 'OK';
+        const commit = () => {
+          item.content.title = ti.value.trim();
+          item.content.url = normalizeUrl(ui.value.trim());
+          delete item._edit;
+          E.items.refreshBody(item, el, onChange);
+          if (onChange) onChange(item);
+        };
+        ok.addEventListener('click', commit);
+        [ti, ui].forEach((inp) => {
+          inp.spellcheck = false;
+          inp.addEventListener('keydown', (ev) => {
+            ev.stopPropagation();
+            if (ev.key === 'Enter') commit();
+          });
+        });
+        body.appendChild(ti);
+        body.appendChild(ui);
+        body.appendChild(ok);
+      } else {
+        let host = '';
+        try {
+          host = new URL(c.url).hostname.replace(/^www\./, '');
+        } catch (_) {
+          host = '';
+        }
+        const title = document.createElement('div');
+        title.className = 'link-title';
+        title.textContent = c.title || host || c.url || 'Link';
+        const dom = document.createElement('div');
+        dom.className = 'link-domain';
+        dom.textContent = host || c.url || '';
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'item-action link-open';
+        E.setLabel(open, 'arrow-up-right', 'Abrir');
+        open.addEventListener('click', () => {
+          if (c.url) window.open(c.url, '_blank', 'noopener');
+        });
+        body.appendChild(title);
+        body.appendChild(dom);
+        body.appendChild(open);
+      }
+    } else if (item.kind === 'color') {
+      const hex = c.hex || '#a78bfa';
+      body.style.background = hex;
+      const tag = document.createElement('span');
+      tag.className = 'color-hex';
+      tag.textContent = hex;
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.className = 'color-input';
+      input.value = hex;
+      input.addEventListener('input', () => {
+        item.content.hex = input.value;
+        body.style.background = input.value;
+        tag.textContent = input.value;
+        if (onChange) onChange(item);
+      });
+      body.appendChild(tag);
+      body.appendChild(input);
+    } else if (item.kind === 'gen') {
+      body.classList.add('gen-body');
+      const bar = document.createElement('div');
+      bar.className = 'media-bar';
+      E.setLabel(bar, 'sparkles', 'Gerador de IA');
+      body.appendChild(bar);
+
+      const mkSelect = (options, value, fn) => {
+        const sel = document.createElement('select');
+        sel.className = 'gen-select';
+        options.forEach(([v, l]) => {
+          const op = document.createElement('option');
+          op.value = v;
+          op.textContent = l;
+          sel.appendChild(op);
+        });
+        sel.value = value;
+        sel.addEventListener('change', () => fn(sel.value));
+        return sel;
+      };
+      const mkRow = (labelText, ctrl) => {
+        const row = document.createElement('div');
+        row.className = 'gen-row';
+        const sp = document.createElement('span');
+        sp.textContent = labelText;
+        row.appendChild(sp);
+        row.appendChild(ctrl);
+        body.appendChild(row);
+      };
+      const mkCheck = (labelText, checked, fn) => {
+        const lab = document.createElement('label');
+        lab.className = 'gen-check';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = checked !== false;
+        input.addEventListener('change', () => fn(input.checked));
+        lab.appendChild(input);
+        lab.appendChild(document.createTextNode(labelText));
+        body.appendChild(lab);
+      };
+      const set = (key) => (v) => {
+        item.content[key] = v;
+        if (onChange) onChange(item);
+      };
+      const setAndRefresh = (key) => (v) => {
+        item.content[key] = v;
+        if (onChange) onChange(item);
+        E.items.refreshBody(item, el, onChange);
+      };
+
+      mkRow('Tipo', mkSelect(
+        [['imagem', 'Imagem'], ['texto', 'Texto'], ['video', 'Vídeo'], ['audio', 'Áudio']],
+        c.type || 'imagem', setAndRefresh('type')
+      ));
+      const tp = c.type || 'imagem';
+      if (tp === 'imagem') {
+        mkRow('Modelo', mkSelect(
+          E.ai.imageModels().map((m) => [m.id, m.label]),
+          c.imageModel || 'gemini', setAndRefresh('imageModel')
+        ));
+      }
+      if (tp === 'imagem' || tp === 'video') {
+        mkRow('Formato', mkSelect(
+          [['1:1', '1:1 Feed'], ['4:5', '4:5 Feed'], ['9:16', '9:16 Reels'], ['16:9', '16:9 Wide']],
+          c.aspect || '1:1', set('aspect')
+        ));
+      }
+      if (tp === 'imagem') {
+        mkRow('Qualidade', mkSelect(
+          [['alta', 'Alta'], ['padrao', 'Padrão']],
+          c.quality || 'alta', set('quality')
+        ));
+      }
+      if (tp === 'video') {
+        mkRow('Modelo', mkSelect(
+          E.ai.videoModels().map((m) => [m.id, m.label]),
+          c.videoModel || E.ai.videoModels()[0].id, set('videoModel')
+        ));
+      }
+      if (tp !== 'audio') {
+        mkCheck('Minha identidade', c.useIdentity, set('useIdentity'));
+        mkCheck('Marca do projeto', c.useBrand, set('useBrand'));
+        if (tp === 'imagem') {
+          const ents = E.ai.brandEntities();
+          if (ents.length) {
+            const selCount = ents.filter((en) =>
+              Array.isArray(c.entityIds) ? c.entityIds.indexOf(en.id) >= 0 : c.useProduct !== false
+            ).length;
+            const head = document.createElement('div');
+            head.className = 'gen-row gen-ents-head';
+            const sp = document.createElement('span');
+            sp.textContent = 'Referências do projeto (' + selCount + '/' + ents.length + ')';
+            head.appendChild(sp);
+            body.appendChild(head);
+            const box = document.createElement('div');
+            box.className = 'gen-ents';
+            ents.forEach((en) => {
+              const on = Array.isArray(c.entityIds)
+                ? c.entityIds.indexOf(en.id) >= 0
+                : c.useProduct !== false;
+              const lab = document.createElement('label');
+              lab.className = 'gen-check';
+              const input = document.createElement('input');
+              input.type = 'checkbox';
+              input.checked = on;
+              input.addEventListener('change', () => {
+                const cur = new Set(
+                  Array.isArray(c.entityIds)
+                    ? c.entityIds
+                    : c.useProduct !== false
+                      ? ents.map((x) => x.id)
+                      : []
+                );
+                if (input.checked) cur.add(en.id);
+                else cur.delete(en.id);
+                item.content.entityIds = [...cur];
+                if (onChange) onChange(item);
+                E.items.refreshBody(item, el, onChange);
+              });
+              lab.appendChild(input);
+              lab.appendChild(document.createTextNode(en.name || 'Referência'));
+              box.appendChild(lab);
+            });
+            body.appendChild(box);
+          } else {
+            const hint = document.createElement('div');
+            hint.className = 'gen-row';
+            const sp = document.createElement('span');
+            sp.textContent = 'Crie produtos/referências em Marca → Referências';
+            hint.appendChild(sp);
+            body.appendChild(hint);
+          }
+        }
+      }
+
+      if (tp === 'imagem') {
+        // imagem de cena/base: a IA compõe o resultado DENTRO desta foto
+        const sceneRow = document.createElement('div');
+        sceneRow.className = 'gen-row';
+        const sLabel = document.createElement('span');
+        sLabel.textContent = 'Cena/base';
+        sLabel.title = 'Ex.: foto da sala com a mesa vazia — a IA ambienta o produto nela';
+        sceneRow.appendChild(sLabel);
+        if (c.sceneBlobId) {
+          const holder = document.createElement('span');
+          holder.className = 'gen-scene';
+          const thumb = document.createElement('img');
+          thumb.className = 'gen-scene-thumb';
+          thumb.alt = '';
+          E.db.blobUrl(c.sceneBlobId).then((u) => {
+            if (u) thumb.src = u;
+          });
+          const rm = document.createElement('button');
+          rm.type = 'button';
+          rm.className = 'item-action gen-scene-rm';
+          rm.innerHTML = E.icon('close', 12);
+          rm.title = 'Remover a cena';
+          rm.addEventListener('click', () => {
+            delete item.content.sceneBlobId;
+            if (onChange) onChange(item);
+            E.items.refreshBody(item, el, onChange);
+          });
+          holder.appendChild(thumb);
+          holder.appendChild(rm);
+          sceneRow.appendChild(holder);
+        } else {
+          const attach = document.createElement('button');
+          attach.type = 'button';
+          attach.className = 'item-action gen-scene-add';
+          attach.textContent = 'Anexar imagem';
+          attach.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.addEventListener('change', async () => {
+              const f = input.files[0];
+              if (!f) return;
+              item.content.sceneBlobId = await E.db.saveBlob(f);
+              if (onChange) onChange(item);
+              E.items.refreshBody(item, el, onChange);
+            });
+            input.click();
+          });
+          sceneRow.appendChild(attach);
+        }
+        body.appendChild(sceneRow);
+
+        // ajustes finos: direção de arte precisa transferida pro prompt
+        const det = document.createElement('details');
+        det.className = 'gen-fine';
+        const sum = document.createElement('summary');
+        sum.textContent = 'Ajustes finos (cores, atmosfera, textura)';
+        det.appendChild(sum);
+        const mkFine = (label, key, placeholder) => {
+          const row = document.createElement('div');
+          row.className = 'gen-fine-row';
+          const sp = document.createElement('span');
+          sp.textContent = label;
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = placeholder;
+          input.value = c[key] || '';
+          input.spellcheck = false;
+          input.addEventListener('keydown', (ev) => ev.stopPropagation());
+          input.addEventListener('change', () => {
+            item.content[key] = input.value.trim();
+            if (onChange) onChange(item);
+          });
+          row.appendChild(sp);
+          row.appendChild(input);
+          det.appendChild(row);
+        };
+        mkFine('Cores', 'tuneColors', 'tons quentes, terrosos, contraste alto…');
+        mkFine('Atmosfera', 'tuneMood', 'fim de tarde, vapor subindo, aconchego…');
+        mkFine('Textura', 'tuneTexture', 'grão de filme, crocância visível, brilho…');
+        body.appendChild(det);
+      }
+
+      const ta = document.createElement('textarea');
+      ta.className = 'gen-prompt';
+      ta.placeholder =
+        tp === 'audio' ? 'Texto que vira locução…' : 'Descreva o que você quer criar…';
+      ta.value = c.prompt || '';
+      ta.spellcheck = false;
+      ta.addEventListener('change', () => {
+        item.content.prompt = ta.value;
+        if (onChange) onChange(item);
+      });
+      ta.addEventListener('keydown', (ev) => ev.stopPropagation());
+      body.appendChild(ta);
+
+      const go = document.createElement('button');
+      go.type = 'button';
+      go.className = 'btn primary gen-go';
+      E.setLabel(go, 'sparkles', 'Gerar');
+      go.addEventListener('click', () => {
+        item.content.prompt = ta.value;
+        if (onChange) onChange(item);
+        E.ai.runFromGenItem(item);
+      });
+      body.appendChild(go);
+    } else if (item.kind === 'frame') {
+      let bar = el.querySelector('.frame-title');
+      if (!bar) {
+        bar = document.createElement('div');
+        bar.className = 'frame-title';
+        el.appendChild(bar);
+      }
+      bar.innerHTML = '';
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = c.text || 'Prancha';
+      nameSpan.title = 'Arraste pra mover · duplo clique pra renomear';
+      const sel = document.createElement('select');
+      sel.className = 'frame-preset';
+      E.FRAME_PRESETS.forEach((p) => {
+        const op = document.createElement('option');
+        op.value = p.id;
+        op.textContent = p.id;
+        sel.appendChild(op);
+      });
+      sel.value = c.preset || '1:1';
+      sel.title = 'Formato da prancha';
+      sel.addEventListener('change', () => {
+        const pr = E.framePresetById(sel.value);
+        item.content.preset = pr.id;
+        item.w = pr.w;
+        item.h = pr.h;
+        E.items.position(el, item);
+        if (onChange) onChange(item);
+      });
+      bar.appendChild(nameSpan);
+      bar.appendChild(sel);
+    } else if (item.kind === 'video') {
+      body.classList.add('media-body');
+      const bar = document.createElement('div');
+      bar.className = 'media-bar';
+      E.setLabel(bar, 'film', c.title || 'Vídeo');
+      const video = document.createElement('video');
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      E.db.blobUrl(c.blobId).then((u) => {
+        if (u) video.src = u;
+      });
+      body.appendChild(bar);
+      body.appendChild(video);
+    } else if (item.kind === 'audio') {
+      body.classList.add('media-body');
+      const bar = document.createElement('div');
+      bar.className = 'media-bar';
+      E.setLabel(bar, 'audio', c.title || 'Áudio');
+      const audio = document.createElement('audio');
+      audio.controls = true;
+      audio.preload = 'metadata';
+      E.db.blobUrl(c.blobId).then((u) => {
+        if (u) audio.src = u;
+      });
+      body.appendChild(bar);
+      body.appendChild(audio);
+    } else if (item.kind === 'post') {
+      const status = E.postStatusById(c.status);
+      const top = document.createElement('div');
+      top.className = 'post-top';
+      const date = document.createElement('input');
+      date.type = 'date';
+      date.className = 'item-action post-date';
+      date.value = c.date || '';
+      date.title = 'Data do post — clique e escolha no calendário';
+      date.addEventListener('keydown', (ev) => ev.stopPropagation());
+      date.addEventListener('change', () => {
+        item.content.date = date.value;
+        if (onChange) onChange(item);
+      });
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'item-action post-status';
+      chip.textContent = status.label;
+      chip.style.background = status.color;
+      chip.title = 'Clique pra avançar o status';
+      chip.addEventListener('click', () => {
+        const i = E.POST_STATUS.findIndex((s) => s.id === (item.content.status || 'ideia'));
+        const next = E.POST_STATUS[(i + 1) % E.POST_STATUS.length];
+        item.content.status = next.id;
+        E.items.refreshBody(item, el, onChange);
+        if (onChange) onChange(item);
+      });
+      top.appendChild(date);
+      top.appendChild(chip);
+      body.appendChild(top);
+      const media = E.items.postMedia(c);
+      if (media.length) {
+        const idx = Math.min(c.mediaIndex || 0, media.length - 1);
+        const m = media[idx];
+        const wrap = document.createElement('div');
+        wrap.className = 'post-carousel';
+        if (m.kind === 'video') {
+          const video = document.createElement('video');
+          video.controls = true;
+          video.playsInline = true;
+          video.preload = 'metadata';
+          E.db.blobUrl(m.blobId).then((u) => {
+            if (u) video.src = u;
+          });
+          wrap.appendChild(video);
+        } else {
+          const img = document.createElement('img');
+          img.draggable = false;
+          img.alt = '';
+          E.db.blobUrl(m.blobId).then((u) => {
+            if (u) img.src = u;
+          });
+          wrap.appendChild(img);
+        }
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'item-action post-media-del';
+        del.innerHTML = E.icon('close', 12);
+        del.title = 'Tirar este item do post';
+        del.addEventListener('click', () => {
+          const list = media.slice();
+          list.splice(idx, 1);
+          item.content.media = list;
+          delete item.content.blobId;
+          item.content.mediaIndex = Math.max(0, idx - 1);
+          E.items.refreshBody(item, el, onChange);
+          if (onChange) onChange(item);
+        });
+        wrap.appendChild(del);
+        if (media.length > 1) {
+          const nav = document.createElement('div');
+          nav.className = 'post-nav';
+          const prev = document.createElement('button');
+          prev.type = 'button';
+          prev.className = 'item-action';
+          prev.textContent = '‹';
+          const count = document.createElement('span');
+          count.textContent = idx + 1 + '/' + media.length;
+          const next = document.createElement('button');
+          next.type = 'button';
+          next.className = 'item-action';
+          next.textContent = '›';
+          const go = (d) => {
+            item.content.media = media;
+            item.content.mediaIndex = (idx + d + media.length) % media.length;
+            E.items.refreshBody(item, el, onChange);
+            if (onChange) onChange(item);
+          };
+          prev.addEventListener('click', () => go(-1));
+          next.addEventListener('click', () => go(1));
+          nav.appendChild(prev);
+          nav.appendChild(count);
+          nav.appendChild(next);
+          wrap.appendChild(nav);
+        }
+        body.appendChild(wrap);
+      }
+      const t = document.createElement('div');
+      t.className = 'note-text post-text';
+      t.textContent = c.text || '';
+      body.appendChild(t);
+    }
+  };
+
+  function formatDate(iso) {
+    const parts = String(iso).split('-');
+    if (parts.length !== 3) return iso;
+    return parts[2] + '/' + parts[1];
+  }
+
+  /** Edição conforme o tipo do item (acionada por duplo clique) */
+  E.items.beginEdit = function (item, el, onChange) {
+    if (item.kind === 'note' || item.kind === 'label' || item.kind === 'post' || item.kind === 'frame') {
+      textEdit(item, el, onChange);
+    } else if (item.kind === 'color') {
+      const input = el.querySelector('input[type=color]');
+      if (input) input.click();
+    } else if (item.kind === 'link') {
+      item._edit = true;
+      E.items.refreshBody(item, el, onChange);
+      const inp = el.querySelector('.link-url-input');
+      if (inp) inp.focus();
+    } else if (item.kind === 'gen') {
+      const ta = el.querySelector('.gen-prompt');
+      if (ta) ta.focus();
+    }
+  };
+
+  function textEdit(item, el, onChange) {
+    if (E.state.editing) return;
+    E.state.editing = true;
+    const body = el.querySelector('.item-body');
+    const ta = document.createElement('textarea');
+    ta.className =
+      'item-editor' +
+      (item.kind === 'label' ? ' editor-label' : '') +
+      (item.kind === 'frame' ? ' editor-frame' : '');
+    ta.value = (item.content && item.content.text) || '';
+    ta.spellcheck = false;
+    el.appendChild(ta);
+    body.style.visibility = 'hidden';
+    ta.focus();
+    ta.select();
+
+    let cancelled = false;
+    ta.addEventListener('keydown', (ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Escape') {
+        cancelled = true;
+        ta.blur();
+      } else if ((item.kind === 'label' || item.kind === 'frame') && ev.key === 'Enter') {
+        ev.preventDefault();
+        ta.blur();
+      }
+    });
+    ta.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+    ta.addEventListener('blur', () => {
+      E.state.editing = false;
+      if (!cancelled) item.content.text = ta.value;
+      ta.remove();
+      body.style.visibility = '';
+      E.items.refreshBody(item, el, onChange);
+      if (!cancelled && onChange) onChange(item);
+    });
+  }
+
+  function normalizeUrl(u) {
+    if (!u) return u;
+    u = u.trim();
+    if (/^(javascript|data|vbscript|file):/i.test(u)) return '';
+    if (!/^https?:\/\//i.test(u)) return 'https://' + u;
+    return u;
+  }
+  E.items.normalizeUrl = normalizeUrl;
+})();

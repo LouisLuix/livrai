@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LIVRAI — Estúdio</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff5c26' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M4 4h7v7H4zM13 13h7v7h-7zM13 4l7 7M4 13l7 7'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css?v=36">
+</head>
+<body>
+
+  <!-- ===== PRELOAD ===== -->
+  <div id="splash" aria-hidden="true">
+    <div class="splash-inner">
+      <svg class="splash-logo" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ff5c26" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4h7v7H4zM13 13h7v7h-7zM13 4l7 7M4 13l7 7"/>
+      </svg>
+      <div class="splash-name">
+        <span>L</span><span>I</span><span>V</span><span>R</span><span>A</span><span>I</span>
+      </div>
+      <p class="splash-sub">Estúdio</p>
+    </div>
+  </div>
+
+  <!-- ===== GALERIA / HOME ===== -->
+  <div id="gallery-view">
+    <nav id="topbar">
+      <div class="topbar-brand" data-icon="logo" data-icon-size="20">
+        <span class="wordmark">Livrai</span>
+        <span class="wordmark-sub">Estúdio</span>
+      </div>
+      <div class="topbar-center">
+        <div id="view-switch" role="tablist" aria-label="Modo de visualização">
+          <button id="view-universe" class="view-btn" role="tab" data-icon="logo" title="Galeria 360 — projetos em órbita, com busca"><span>Universo</span></button>
+          <button id="view-grid" class="view-btn active" role="tab" data-icon="grid" title="Ver projetos em grade"><span>Grade</span></button>
+          <button id="view-kanban" class="view-btn" role="tab" data-icon="kanban" title="Ver projetos por fase, em colunas"><span>Kanban</span></button>
+          <span class="view-thumb" aria-hidden="true"></span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button id="btn-settings" class="btn ghost" data-icon="settings" title="IA, clientes, backup e integrações"><span>Configurações</span></button>
+      </div>
+    </nav>
+
+    <header id="gallery-header">
+      <p class="eyebrow"><span class="eyebrow-num">Direção criativa</span><span class="eyebrow-rule"></span><span id="hero-date"></span></p>
+      <h1 class="hero-title"><span class="hero-line">Seu</span> <span class="hero-line hero-accent">estúdio</span></h1>
+      <div class="hero-meta">
+        <p class="sub">Projetos vivos, organizados do seu jeito.</p>
+        <p class="hero-count mono" id="hero-count"></p>
+      </div>
+    </header>
+
+    <div id="stage-filters"></div>
+    <div id="client-filters"></div>
+    <div id="project-grid"></div>
+    <div id="kanban-board" class="hidden"></div>
+    <div id="universe-view" class="hidden"></div>
+  </div>
+
+  <!-- ===== CANVAS ===== -->
+  <div id="canvas-view" class="hidden">
+    <header id="canvas-header">
+      <button id="btn-back" class="btn ghost icon-only" data-icon="arrow-left" title="Voltar pra galeria"></button>
+      <input id="project-title" class="title-input" spellcheck="false">
+      <span id="stage-dot" class="stage-dot"></span>
+      <select id="stage-select" title="Fase da entrega"></select>
+      <div class="sep"></div>
+      <button id="tool-create" class="btn btn-ai" data-icon="plus" title="Criar item no canvas: nota, imagem, post, prancha, gerador de IA…"><span>Criar</span></button>
+      <div class="sep"></div>
+      <button id="tool-notes" class="btn ghost" data-icon="note" title="Notas do projeto: páginas e blocos, estilo Notion"><span>Notas</span></button>
+      <button id="tool-brand" class="btn ghost" data-icon="palette" title="Marca &amp; produto do projeto: logo, cores, fontes e fotos de referência — a IA usa em tudo"><span>Marca</span></button>
+      <button id="tool-schedule" class="btn ghost" data-icon="calendar" title="Calendário de postagens deste projeto"><span>Cronograma</span></button>
+      <button id="tool-export" class="btn ghost" data-icon="download" title="Exportar pranchas como PNG ou apresentação"><span>Exportar</span></button>
+      <div class="spacer"></div>
+      <div class="zoom-group">
+        <button id="zoom-out" class="btn ghost icon-only" data-icon="zoom-out" title="Menos zoom"></button>
+        <span id="zoom-label" class="mono">100%</span>
+        <button id="zoom-in" class="btn ghost icon-only" data-icon="zoom-in" title="Mais zoom"></button>
+        <button id="zoom-fit" class="btn ghost icon-only" data-icon="maximize" title="Enquadrar tudo"></button>
+      </div>
+      <input type="file" id="file-input" accept="image/*,video/*" multiple hidden>
+    </header>
+    <div id="board-tabs"></div>
+    <div id="canvas-main">
+      <div id="viewport">
+        <div id="world"></div>
+        <div id="marquee" class="hidden"></div>
+        <div id="empty-hint" class="hidden">
+          <p class="hint-big">Canvas em branco</p>
+          <p>Arraste imagens ou vídeos da sua pasta pra cá, dê dois cliques pra criar uma nota,<br>ou use o botão Criar aí em cima.</p>
+        </div>
+      </div>
+      <aside id="schedule-panel" class="hidden">
+        <div class="panel-resizer" title="Arraste pra ajustar o tamanho"></div>
+        <div class="panel-content"></div>
+      </aside>
+      <aside id="brand-panel" class="hidden">
+        <div class="panel-resizer" title="Arraste pra ajustar o tamanho"></div>
+        <div class="panel-content"></div>
+      </aside>
+      <aside id="notes-panel" class="hidden">
+        <div class="panel-resizer" title="Arraste pra ajustar o tamanho"></div>
+        <div class="panel-content"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="settings-root"></div>
+  <div id="jobs"></div>
+  <div id="toast"></div>
+
+  <script src="js/state.js?v=36"></script>
+  <script src="js/icons.js?v=36"></script>
+  <script src="js/db.js?v=36"></script>
+  <script src="js/sync.js?v=36"></script>
+  <script src="js/ui.js?v=36"></script>
+  <script src="js/items.js?v=36"></script>
+  <script src="js/canvas.js?v=36"></script>
+  <script src="js/schedule.js?v=36"></script>
+  <script src="js/brand.js?v=36"></script>
+  <script src="js/notes.js?v=36"></script>
+  <script src="js/export.js?v=36"></script>
+  <script src="js/ai.js?v=36"></script>
+  <script src="js/files.js?v=36"></script>
+  <script src="js/clients.js?v=36"></script>
+  <script src="js/settings.js?v=36"></script>
+  <script src="js/kanban.js?v=36"></script>
+  <script src="js/universe.js?v=36"></script>
+  <script src="js/gallery.js?v=36"></script>
+  <script src="js/app.js?v=36"></script>
+</body>
+</html>

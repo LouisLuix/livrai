@@ -1,0 +1,21 @@
+# sistema
+.DS_Store
+Thumbs.db
+
+# conteúdo pessoal do usuário (não vai pro repositório)
+Projetos/
+fotos p ditar/
+BACKUPS DO APP/
+livrai-projetos.json
+estudio-backup-*.json
+
+# binários e builds pesados
+INSTALADORES/
+desktop/node_modules/
+desktop/dist/
+desktop/dist-installers/
+desktop/app/
+
+# logs e temporários
+*.log
+*.pid

@@ -1,0 +1,155 @@
+SEU ESTÚDIO — organizador visual de entregas + central criativa de IA
+=======================================================================
+
+COMO ABRIR
+  Dois cliques em "ABRIR ESTUDIO.command"
+  (ou dois cliques direto no arquivo index.html)
+
+O QUE ELE FAZ
+  • GALERIA: todos os seus projetos como capas, com a fase da entrega
+    (Ideia → … → Entregue, ou "Contínuo" pra clientes fixos)
+  • CANVAS INFINITO: moodboard livre com imagens, notas, links, cores,
+    títulos, cards de post, vídeos e áudios
+  • PRANCHAS: artes com formato definido (16:9, 9:16 Reels, 1:1 Feed,
+    4:5, A4) que viram PNG ou apresentação na exportação
+  • GERAÇÃO POR IA: texto, imagem, áudio e vídeo direto no canvas
+  • EXPORTAÇÃO: PNG por prancha, sequência PNG ou apresentação em
+    arquivo único (abre em qualquer navegador, ← → navegam, F = tela cheia)
+
+NO CANVAS
+  • Arraste imagens da sua pasta direto pro canvas | Cmd+V cola tudo
+  • Dois cliques no fundo = nota | dois cliques num item = editar
+  • ARRASTAR NO FUNDO = selecionar vários (laço, como no Figma)
+    Shift mantém a seleção e soma mais itens
+  • Mover o canvas: dois dedos no trackpad, OU segurar Espaço e
+    arrastar, OU botão do meio do mouse | Cmd+scroll (pinça) = zoom
+  • Cmd+C / Cmd+V copia itens ENTRE projetos | Cmd+Z desfaz exclusões
+  • Botão direito = mais opções | Pranchas se movem pela barrinha
+    de título e ficam sempre atrás
+
+PRANCHAS E APRESENTAÇÕES (fluxo)
+  1. Botão 🎞️ Prancha → escolha o formato
+  2. Monte a arte DENTRO da prancha (imagens, textos, cores…)
+  3. Botão ⬇️ Exportar → PNG, sequência ou apresentação
+  4. A ordem dos slides segue a posição no canvas
+     (de cima pra baixo, da esquerda pra direita)
+
+CRIAR (botão ➕ no topo)
+  Tudo que entra no canvas sai desse menu: Gerador de IA, Nota,
+  Imagem, Post, Prancha, Link, Cor e Título.
+  Escolheu a ferramenta → o cursor vira uma mira → CLIQUE NO LUGAR
+  do canvas onde quer criar o item (Esc cancela). Sem popups:
+  • Link: edita nome e endereço dentro do próprio card
+  • Prancha: nasce 1:1 e o formato muda no seletor da barrinha dela
+
+GERADOR DE IA (card no canvas)
+  ➕ Criar → "✨ Gerador de IA" cria um CARD no canvas onde você
+  configura tudo antes de gerar: tipo (imagem/texto/vídeo/áudio),
+  MODELO de imagem (Gemini do Google, GPT Image da OpenAI ou
+  Seedream da ByteDance — este pela chave do fal.ai), formato
+  (1:1, 4:5, 9:16, 16:9), qualidade, identidade, marca e fotos do
+  produto. Escreve a ideia, clica ✨ Gerar e o resultado aparece ao
+  lado. O card fica salvo — ajuste e gere de novo quantas vezes
+  quiser. Dá pra ter vários cards, um pra cada tipo de criação.
+  (Fotos de produto como referência: Gemini e GPT Image; o Seedream
+  gera só pelo texto.)
+
+  Antes, configure suas chaves: na galeria, botão Configurações > IA & Identidade.
+  Cada chave tem um botão TESTAR ao lado — use depois de colar pra
+  confirmar a conexão na hora.
+  ⚠️ OPENAI: ela exige a ponte local (a OpenAI bloqueia chamadas
+  diretas do navegador). A ponte liga sozinha quando você abre o
+  Estúdio pelo "ABRIR ESTUDIO.command" — então pra usar GPT (texto
+  ou imagem), sempre abra por ele.
+  Cada chave é criada no site da própria IA (você paga direto pra elas):
+
+  • TEXTO — Claude:  console.anthropic.com  → API Keys
+            GPT:     platform.openai.com    → API Keys
+            Gemini:  aistudio.google.com    → Get API Key
+  • IMAGEM — usa a mesma chave do Gemini (aistudio.google.com)
+  • ÁUDIO/LOCUÇÃO — elevenlabs.io → Profile → API Keys
+  • VÍDEO — fal.ai → Dashboard → Keys
+            UMA chave do fal.ai dá acesso a Veo 3 (Google),
+            Kling e Seedance. Vídeo demora alguns minutos — o
+            andamento aparece no cantinho da tela.
+
+  IDENTIDADE: nas mesmas Configurações, descreva sua estética (cores, tom,
+  referências). Ela entra automaticamente em TODAS as gerações —
+  texto, imagem e vídeo saem com a sua cara.
+
+  ✨ REESCREVER: botão direito numa nota/post → "Reescrever com IA"
+  (melhorar, encurtar, expandir, variações, virar legenda com hashtags).
+  O resultado vira uma nota nova ao lado — o original fica intacto.
+
+  ✨ EDITAR IMAGEM: botão direito numa imagem → "Editar com IA".
+  Descreva o que mudar ("troca o fundo", "deixa mais quente",
+  "remove o objeto X"…) e a versão editada aparece ao lado da
+  original. Usa a chave do Gemini.
+
+CARDS DE POST (social media)
+  ➕ Criar → Post: card com data e status. Clique no status pra avançar:
+  Ideia → Roteiro → Gravado → Editado → Postado.
+  • Botão direito numa IMAGEM ou VÍDEO → "Transformar em post"
+  • 🎠 CARROSSEL: selecione VÁRIAS imagens/vídeos no canvas (laço ou
+    Shift+clique) → botão direito → "Criar post carrossel". A ordem
+    segue a posição no canvas (esquerda → direita). No card, navegue
+    com ‹ 1/3 › e remova um item com o ✕ sobre a mídia.
+  • Pra somar mais itens a um post: selecione as imagens no canvas e
+    clique com o botão direito NO POST → "Anexar selecionados ao
+    carrossel" (ou "Adicionar imagens" pra buscar do computador)
+  • Botão direito no POST → "Gerar legenda com IA": a IA OLHA a
+    imagem (e sabe que é carrossel) e escreve a legenda pronta com
+    hashtags; o texto que já estiver no post vira briefing
+
+📆 CRONOGRAMA (botão no topo)
+  Divide a tela com um calendário do mês mostrando os posts do projeto
+  nas suas datas (de todas as abas). Clique num post no calendário e o
+  canvas te leva até ele. Posts sem data ficam listados embaixo.
+
+ABAS (ideias diferentes no mesmo projeto)
+  Barra abaixo do topo: cada aba é um canvas separado dentro do projeto.
+  "+ Aba" cria | duplo clique renomeia | botão direito exclui.
+  Cmd+C / Cmd+V copia itens entre abas (e entre projetos).
+
+🎨 MARCA & PRODUTO (painel que divide a tela) — 3 sub-abas:
+  • IDENTIDADE: logo, cores oficiais e tipografia (escolha uma fonte
+    padrão, descreva, ou suba o arquivo .ttf/.otf da sua fonte)
+  • DIRETRIZES: o que COMBINA com a marca e o que NÃO COMBINA
+    (o "não combina" funciona como negative prompt — a IA evita sempre)
+  • REFERÊNCIAS: crie quantos itens quiser — produto, personagem,
+    cenário/lugar, variação. Cada item tem nome, descrição da
+    identidade (o que nunca muda) e fotos de VÁRIOS ângulos.
+    No card Gerador, cada item vira um checkbox: você escolhe quais
+    entram em cada geração, e a IA mantém tudo idêntico ao real.
+  Tudo salva automaticamente.
+
+📆 CRONOGRAMA — ARRASTAR: arraste um post pra qualquer dia do
+  calendário pra remarcar; solte na seção "Sem data" pra tirar a data.
+  No card do post, a data agora abre um calendário nativo (clique nela).
+  • Arraste a borda esquerda do painel pra deixar do tamanho que
+    quiser — um pedacinho ou metade da tela (vale pro Cronograma
+    também; o app lembra o tamanho escolhido).
+
+🖌️ ABRIR NO PHOTOSHOP
+  Botão direito numa imagem → "Salvar e abrir no Photoshop".
+  • 1ª vez: o Chrome pede pra você escolher uma pasta — escolha a
+    pasta "Projetos" que fica dentro de "ORGANIZADOR DE ENTREGAS"
+    (só nessa primeira vez)
+  • A arte é salva em Projetos/<nome do projeto>/ e abre sozinha
+    no seu Photoshop (qualquer versão instalada)
+  • Edite e dê Cmd+S no Photoshop — o arquivo fica salvo na pasta
+    do projeto. Pra trazer de volta pro canvas, arraste o arquivo
+    da pasta pro app.
+  • IMPORTANTE: a abertura automática só funciona quando o Estúdio
+    foi aberto pelo "ABRIR ESTUDIO.command" (é ele que liga a ponte).
+    Se abrir só o index.html, a arte é salva na pasta do mesmo jeito,
+    mas o Photoshop não abre sozinho.
+
+BACKUP (importante!)
+  Os dados ficam no armazenamento do NAVEGADOR. Use sempre o mesmo
+  navegador e NÃO limpe os "dados de sites" nas configurações dele.
+  Proteção: na galeria, 💾 Backup → "Salvar backup" gera um arquivo
+  com TUDO (projetos, imagens, vídeos). Guarde-o e restaure quando
+  precisar. Faça backup toda semana!
+
+  As chaves de IA ficam salvas só neste navegador, no seu computador.

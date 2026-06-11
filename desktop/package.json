@@ -1,0 +1,46 @@
+{
+  "name": "livrai",
+  "productName": "Livrai",
+  "version": "1.0.1",
+  "description": "Livrai — estúdio criativo: moodboards, entregas, IA e marca",
+  "author": "Uriel Calomeni",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win --x64"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@electron/packager": "^20.0.1",
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.2"
+  },
+  "build": {
+    "appId": "br.com.livrai.app",
+    "productName": "Livrai",
+    "directories": {
+      "output": "dist-installers"
+    },
+    "files": [
+      "main.js",
+      "app/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "shortcutName": "Livrai",
+      "artifactName": "Instalar-Livrai-${version}-Windows.${ext}"
+    }
+  }
+}
