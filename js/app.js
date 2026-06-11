@@ -123,6 +123,7 @@
         setTimeout(() => E.sync.firstRunPrompt(), 1600);
       }
       if (E.updates) setTimeout(() => E.updates.check(), 4000);
+      if (E.account) E.account.init();
       gcBlobs().catch(() => {});
     } catch (err) {
       console.error(err);

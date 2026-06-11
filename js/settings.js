@@ -5,6 +5,7 @@
   const root = document.getElementById('settings-root');
 
   const SECTIONS = [
+    { id: 'account', label: 'Conta', icon: 'user' },
     { id: 'clients', label: 'Clientes', icon: 'users' },
     { id: 'ai', label: 'IA & Identidade', icon: 'sparkles' },
     { id: 'backup', label: 'Backup', icon: 'database' },
@@ -392,6 +393,7 @@
   }
 
   const RENDERERS = {
+    account: (content) => E.account.renderSection(content),
     clients: sectionClients,
     ai: sectionAi,
     backup: sectionBackup,

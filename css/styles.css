@@ -2487,6 +2487,116 @@ input.post-date:hover {
   z-index: 200;
 }
 
+/* ===== Conta ===== */
+
+.account-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.account-avatar-big {
+  width: 52px;
+  height: 52px;
+  font-size: 22px;
+}
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.account-meta {
+  flex: 1;
+  min-width: 0;
+}
+.account-meta strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-meta p {
+  color: var(--faint);
+  font-size: 11px;
+  margin: 3px 0 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-google {
+  width: 100%;
+  justify-content: center;
+  padding: 11px;
+}
+.account-divider {
+  text-align: center;
+  color: var(--faint);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin: 14px 0 !important;
+}
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.account-form input {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  padding: 10px 13px;
+}
+.account-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.account-form .btn {
+  justify-content: center;
+}
+.account-perks {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.account-perks li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.account-perks .ic {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.account-perks em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  background: var(--panel-2);
+  border-radius: 99px;
+  padding: 2px 8px;
+  margin-left: 6px;
+}
+
 /* ===== Aviso de atualização ===== */
 
 #btn-settings {
