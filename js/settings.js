@@ -386,7 +386,7 @@
       '<div class="settings-block">' +
       '<h4>' + E.icon('pencil', 16) + '<span>Desenvolvedor</span></h4>' +
       '<p>Criado e desenvolvido por <strong>Luis Gustavo Felix</strong> ' +
-      '<span class="about-handle mono">@luisluix</span></p>' +
+      '<a class="about-handle mono" href="https://instagram.com/luisluix" target="_blank" rel="noopener">@luisluix</a></p>' +
       '<p class="mono about-copy">© ' + new Date().getFullYear() + ' Luis Gustavo Felix · Licença MIT · v' + E.APP_VERSION + '</p>' +
       '</div>';
   }
