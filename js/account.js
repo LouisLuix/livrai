@@ -14,9 +14,35 @@
   };
   const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 
+  // app desktop: o login Google acontece no NAVEGADOR (o Google bloqueia
+  // janelas de aplicativo) e a credencial volta pelo servidor local
+  const IS_DESKTOP = location.origin === 'http://localhost:8788';
+  const LOGIN_PAGE = 'https://louisluix.github.io/livrai/login.html';
+
   let fbPromise = null;
   let user = null;
   const listeners = [];
+
+  async function googleViaBrowser() {
+    const state = E.uid() + '-' + E.uid();
+    window.open(LOGIN_PAGE + '?state=' + encodeURIComponent(state), '_blank', 'noopener');
+    E.ui.toast('Continue no navegador que abriu — eu espero aqui');
+    const deadline = Date.now() + 180000; // 3 minutos
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 1500));
+      try {
+        const r = await fetch('/__auth?state=' + encodeURIComponent(state), { cache: 'no-store' });
+        if (r.status === 200) {
+          const data = await r.json();
+          const fb = await loadFirebase();
+          const cred = fb.auth.GoogleAuthProvider.credential(data.idToken);
+          await fb.auth().signInWithCredential(cred);
+          return;
+        }
+      } catch (_) {}
+    }
+    throw { code: 'auth/browser-timeout' };
+  }
 
   function loadFirebase() {
     if (fbPromise) return fbPromise;
@@ -72,6 +98,8 @@
       code.indexOf('popup-blocked') >= 0
     )
       return 'O login com Google não funciona neste ambiente — use e-mail e senha.';
+    if (code.indexOf('browser-timeout') >= 0)
+      return 'O login no navegador não chegou — tente de novo.';
     if (code.indexOf('popup-closed-by-user') >= 0) return null; // usuário desistiu, sem alarde
     return 'Algo deu errado: ' + (err && err.message ? err.message : 'erro desconhecido');
   }
@@ -120,15 +148,21 @@
     googleBtn.className = 'btn account-google';
     E.setLabel(googleBtn, 'sparkles', 'Entrar com Google');
     googleBtn.addEventListener('click', async () => {
+      googleBtn.disabled = true;
+      E.setLabel(googleBtn, 'sparkles', 'Aguardando o navegador…');
       try {
-        const fb = await loadFirebase();
-        const provider = new fb.auth.GoogleAuthProvider();
-        await fb.auth().signInWithPopup(provider);
+        if (IS_DESKTOP) await googleViaBrowser();
+        else {
+          const fb = await loadFirebase();
+          await fb.auth().signInWithPopup(new fb.auth.GoogleAuthProvider());
+        }
         E.ui.toast('Bem-vindo ao LIVRAI!');
         renderSection(content);
       } catch (err) {
         const msg = friendly(err);
         if (msg) E.ui.toast('⚠️ ' + msg);
+        googleBtn.disabled = false;
+        E.setLabel(googleBtn, 'sparkles', 'Entrar com Google');
       }
     });
     block.appendChild(googleBtn);

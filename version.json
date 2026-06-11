@@ -1,6 +1,6 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.1",
   "date": "2026-06-11",
-  "notes": "Conta LIVRAI (login com Google ou e-mail), painel de conta próprio, e o app desktop agora roda em origem local segura — com migração automática dos projetos.",
+  "notes": "Login com Google direto no navegador (seguro e aprovado pelo Google), site oficial com landing page, e conta LIVRAI opcional.",
   "url": "https://github.com/LouisLuix/livrai/releases/latest"
 }

@@ -82,8 +82,43 @@ function startAppServer() {
     '.woff2': 'font/woff2',
   };
   const root = path.resolve(APP_DIR);
+  const authTokens = {}; // state -> idToken (login Google feito no navegador)
   const server = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://localhost');
+    if (u.pathname === '/__auth') {
+      const cors = { 'Access-Control-Allow-Origin': '*' };
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, cors);
+        res.end();
+        return;
+      }
+      const state = u.searchParams.get('state') || '';
+      const idToken = u.searchParams.get('idToken');
+      if (!state) {
+        res.writeHead(400, cors);
+        res.end();
+        return;
+      }
+      if (idToken) {
+        // o site de login entrega a credencial aqui
+        authTokens[state] = idToken;
+        setTimeout(() => delete authTokens[state], 120000); // expira em 2 min
+        res.writeHead(200, Object.assign({ 'Content-Type': 'application/json' }, cors));
+        res.end('{"ok":true}');
+      } else {
+        // o app consulta se a credencial já chegou
+        const t = authTokens[state];
+        if (t) {
+          delete authTokens[state];
+          res.writeHead(200, Object.assign({ 'Content-Type': 'application/json' }, cors));
+          res.end(JSON.stringify({ idToken: t }));
+        } else {
+          res.writeHead(204, cors);
+          res.end();
+        }
+      }
+      return;
+    }
     if (u.pathname === '/__migration') {
       // entrega (e depois apaga) os projetos exportados da versão antiga
       if (u.searchParams.get('done')) {

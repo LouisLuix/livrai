@@ -1,7 +1,7 @@
 {
   "name": "livrai",
   "productName": "Livrai",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "LIVRAI — Estúdio: organizador visual de entregas para quem dirige criação",
   "author": "Luis Gustavo Felix (@luisluix)",
   "main": "main.js",

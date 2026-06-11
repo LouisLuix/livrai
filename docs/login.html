@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conectar conta — LIVRAI</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff5c26' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M4 4h7v7H4zM13 13h7v7h-7zM13 4l7 7M4 13l7 7'/%3E%3C/svg%3E">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0b; --panel: #121214; --line: rgba(255,255,255,0.1);
+      --text: #f1efe9; --muted: #908e86; --faint: #5c5b55;
+      --accent: #ff5c26; --accent-ink: #160a05;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; -webkit-font-smoothing: antialiased; }
+    .card { width: min(420px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 36px; text-align: center; }
+    .logo { color: var(--accent); margin-bottom: 18px; }
+    h1 { font-family: 'Space Grotesk', sans-serif; font-size: 21px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 10px; }
+    p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: var(--text); color: var(--bg); border: none; border-radius: 99px; padding: 14px; font: 600 15px 'Inter', sans-serif; cursor: pointer; transition: 0.2s; }
+    .btn:hover { background: var(--accent); color: var(--accent-ink); }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .state { margin-top: 18px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); min-height: 16px; }
+    .state.ok { color: #34d399; }
+    .state.err { color: #ff5d5d; text-transform: none; letter-spacing: 0; font-family: 'Inter', sans-serif; font-size: 13px; }
+    .big-ok { display: none; }
+    .big-ok svg { color: #34d399; margin-bottom: 14px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4h7v7H4zM13 13h7v7h-7zM13 4l7 7M4 13l7 7"/></svg>
+    </div>
+    <div id="ask">
+      <h1>Conectar sua conta ao LIVRAI</h1>
+      <p>Você veio do aplicativo. Entre com sua conta Google aqui no navegador — é o jeito seguro que o Google exige — e volte pro LIVRAI logado.</p>
+      <button class="btn" id="go">Entrar com Google</button>
+      <p class="state" id="state"></p>
+    </div>
+    <div class="big-ok" id="done">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"/></svg>
+      <h1>Conectado!</h1>
+      <p>Pode fechar esta aba e voltar pro LIVRAI — sua conta já está ativa lá.</p>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: 'AIzaSyCV3zo_rMbu0yTbT51NsHFr3Jyx438J-eY',
+      authDomain: 'livrai-e97aa.firebaseapp.com',
+      projectId: 'livrai-e97aa',
+    });
+
+    var params = new URLSearchParams(location.search);
+    var state = params.get('state') || '';
+    var go = document.getElementById('go');
+    var stateEl = document.getElementById('state');
+
+    go.addEventListener('click', function () {
+      go.disabled = true;
+      stateEl.textContent = 'abrindo o google…';
+      stateEl.className = 'state';
+      var provider = new firebase.auth.GoogleAuthProvider();
+      firebase.auth().signInWithPopup(provider)
+        .then(function (result) {
+          var idToken = result.credential && result.credential.idToken;
+          if (!idToken) throw new Error('Credencial não veio do Google — tente de novo.');
+          stateEl.textContent = 'devolvendo pro livrai…';
+          return fetch('http://localhost:8788/__auth?state=' + encodeURIComponent(state) +
+            '&idToken=' + encodeURIComponent(idToken));
+        })
+        .then(function (r) {
+          if (!r || !r.ok) throw new Error('Não achei o LIVRAI aberto — abra o aplicativo e tente de novo.');
+          document.getElementById('ask').style.display = 'none';
+          document.getElementById('done').style.display = 'block';
+        })
+        .catch(function (err) {
+          go.disabled = false;
+          stateEl.className = 'state err';
+          var code = (err && err.code) || '';
+          if (code.indexOf('popup-closed') >= 0) stateEl.textContent = '';
+          else if (code.indexOf('unauthorized-domain') >= 0)
+            stateEl.textContent = 'Este domínio ainda não está autorizado no Firebase do projeto.';
+          else stateEl.textContent = err.message || 'Algo deu errado — tente de novo.';
+        });
+    });
+  </script>
+</body>
+</html>
