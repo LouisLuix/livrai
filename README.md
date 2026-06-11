@@ -35,7 +35,14 @@ O LIVRAI avisa dentro do app quando sai uma versão nova.
 
 ## Rodando do código-fonte
 
-Dê dois cliques em **`ABRIR ESTUDIO.command`** (macOS) — ele liga as pontes locais e abre no navegador. Pra empacotar os apps: `cd desktop && npm install && npm run dist:mac` / `npm run dist:win`.
+```bash
+git clone https://github.com/LouisLuix/livrai.git
+cd livrai/desktop
+npm install
+npm start          # roda o app em modo desenvolvimento
+npm run dist:mac   # empacota pra macOS (zip arm64 + x64)
+npm run dist:win   # empacota pra Windows (instalador NSIS)
+```
 
 ### Chaves de IA (opcional)
 

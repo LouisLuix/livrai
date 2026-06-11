@@ -16,6 +16,12 @@ desktop/dist/
 desktop/dist-installers/
 desktop/app/
 
+# utilitários locais do desenvolvedor (não vão pro repositório)
+ABRIR ESTUDIO.command
+GERAR INSTALADOR WINDOWS.command
+proxy.py
+photoshop-bridge.sh
+
 # logs e temporários
 *.log
 *.pid
