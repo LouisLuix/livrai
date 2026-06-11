@@ -122,6 +122,7 @@
         E.sync.init();
         setTimeout(() => E.sync.firstRunPrompt(), 1600);
       }
+      if (E.updates) setTimeout(() => E.updates.check(), 4000);
       gcBlobs().catch(() => {});
     } catch (err) {
       console.error(err);

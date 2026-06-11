@@ -387,7 +387,7 @@
       '<h4>' + E.icon('pencil', 16) + '<span>Desenvolvedor</span></h4>' +
       '<p>Criado e desenvolvido por <strong>Luis Gustavo Felix</strong> ' +
       '<span class="about-handle mono">@luisluix</span></p>' +
-      '<p class="mono about-copy">© ' + new Date().getFullYear() + ' Luis Gustavo Felix · Licença MIT</p>' +
+      '<p class="mono about-copy">© ' + new Date().getFullYear() + ' Luis Gustavo Felix · Licença MIT · v' + E.APP_VERSION + '</p>' +
       '</div>';
   }
 
@@ -449,6 +449,23 @@
     head.appendChild(h);
     head.appendChild(closeBtn);
     panel.appendChild(head);
+
+    const up = E.updates && E.updates.info();
+    if (up) {
+      const banner = document.createElement('button');
+      banner.className = 'update-banner';
+      banner.innerHTML =
+        E.icon('download', 16) +
+        '<span><strong>Atualização disponível — v' + E.escapeHtml(up.version) + '</strong>' +
+        (up.notes ? '<em>' + E.escapeHtml(up.notes) + '</em>' : '') +
+        '</span>' +
+        E.icon('arrow-up-right', 14);
+      banner.title = 'Baixar a nova versão no GitHub';
+      banner.addEventListener('click', () => {
+        window.open(up.url || E.REPO_URL, '_blank', 'noopener');
+      });
+      panel.appendChild(banner);
+    }
 
     const body = document.createElement('div');
     body.className = 'settings-body';

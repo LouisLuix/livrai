@@ -2487,6 +2487,70 @@ input.post-date:hover {
   z-index: 200;
 }
 
+/* ===== Aviso de atualização ===== */
+
+#btn-settings {
+  position: relative;
+}
+.update-dot {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--bg);
+  animation: pulse-dot 2.2s var(--ease) infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.75; }
+}
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 26px 0;
+  padding: 13px 16px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(255, 92, 38, 0.45);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-align: left;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.update-banner:hover {
+  border-color: var(--accent);
+  background: rgba(255, 92, 38, 0.16);
+}
+.update-banner > .ic {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.update-banner span {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.update-banner strong {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.update-banner em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 /* ============================================================
    CONFIGURAÇÕES — painel lateral
    ============================================================ */
