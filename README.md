@@ -19,16 +19,23 @@ Quem dirige criação vive com o trabalho espalhado: referências numa pasta, ro
 - **Exportação** — pranchas em PNG ou apresentação HTML num arquivo único
 - **Pasta do Estúdio** — salvamento automático num arquivo da sua pasta; aponte o navegador e o aplicativo pra mesma pasta e os dois mostram os mesmos projetos
 
-## Como usar
+## Download — Mac e Windows
 
-### No navegador (recomendado: Chrome)
+**[Baixe a versão mais recente nas Releases](https://github.com/LouisLuix/livrai/releases/latest)**
 
-Dê dois cliques em **`ABRIR ESTUDIO.command`** (macOS) — ele liga as pontes locais (Photoshop e proxy da OpenAI) e abre o app. Ou simplesmente abra o `index.html`.
+| Sistema | Arquivo |
+| --- | --- |
+| Windows | `Instalar-Livrai-X.Y.Z-Windows.exe` — instalador de um clique |
+| Mac Apple Silicon (M1+) | `Livrai-X.Y.Z-macOS-arm64.zip` — descompacte e arraste pra Aplicativos |
+| Mac Intel | `Livrai-X.Y.Z-macOS-x64.zip` |
 
-### Como aplicativo
+> O app ainda não tem assinatura digital paga: no Windows, se o SmartScreen avisar, use *Mais informações → Executar assim mesmo*; no Mac, na primeira vez abra com botão direito → *Abrir* (ou Ajustes → Privacidade e Segurança → *Abrir mesmo assim*).
 
-- **macOS**: `desktop/dist/Livrai-darwin-arm64/Livrai.app`
-- **Windows**: instalador em `INSTALADORES/` (gere uma versão nova com `GERAR INSTALADOR WINDOWS.command`)
+O LIVRAI avisa dentro do app quando sai uma versão nova.
+
+## Rodando do código-fonte
+
+Dê dois cliques em **`ABRIR ESTUDIO.command`** (macOS) — ele liga as pontes locais e abre no navegador. Pra empacotar os apps: `cd desktop && npm install && npm run dist:mac` / `npm run dist:win`.
 
 ### Chaves de IA (opcional)
 

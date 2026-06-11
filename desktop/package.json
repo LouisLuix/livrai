@@ -1,15 +1,16 @@
 {
   "name": "livrai",
   "productName": "Livrai",
-  "version": "1.0.1",
-  "description": "Livrai — estúdio criativo: moodboards, entregas, IA e marca",
-  "author": "Uriel Calomeni",
+  "version": "1.1.0",
+  "description": "LIVRAI — Estúdio: organizador visual de entregas para quem dirige criação",
+  "author": "Luis Gustavo Felix (@luisluix)",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist:win": "electron-builder --win --x64"
+    "dist:win": "electron-builder --win --x64",
+    "dist:mac": "electron-builder --mac zip --arm64 --x64"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "devDependencies": {
     "@electron/packager": "^20.0.1",
     "electron": "^42.4.0",
@@ -41,6 +42,20 @@
       "createDesktopShortcut": true,
       "shortcutName": "Livrai",
       "artifactName": "Instalar-Livrai-${version}-Windows.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "identity": null,
+      "artifactName": "Livrai-${version}-macOS-${arch}.${ext}",
+      "category": "public.app-category.productivity"
     }
   }
 }
