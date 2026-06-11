@@ -253,6 +253,72 @@
     return input;
   }
 
+  /* ---------- painel próprio (separado das Configurações) ---------- */
+
+  const panelRoot = document.getElementById('account-root');
+  let panelEl = null;
+
+  function closePanel(instant) {
+    if (!panelEl) return;
+    const p = panelEl;
+    panelEl = null;
+    window.removeEventListener('keydown', onPanelEsc, true);
+    if (instant) {
+      panelRoot.innerHTML = '';
+      return;
+    }
+    p.panel.classList.add('closing');
+    p.backdrop.style.opacity = '0';
+    setTimeout(() => {
+      panelRoot.innerHTML = '';
+    }, 280);
+  }
+
+  function onPanelEsc(e) {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      closePanel();
+    }
+  }
+
+  function openPanel() {
+    if (E.settings && E.settings.close) E.settings.close();
+    panelRoot.innerHTML = '';
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'settings-backdrop';
+    backdrop.style.transition = 'opacity 0.25s';
+    backdrop.addEventListener('pointerdown', () => closePanel());
+
+    const panel = document.createElement('div');
+    panel.className = 'settings-panel account-panel';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Conta');
+
+    const head = document.createElement('div');
+    head.className = 'settings-head';
+    const h = document.createElement('h2');
+    h.textContent = 'Conta';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'btn ghost icon-only';
+    closeBtn.innerHTML = E.icon('close', 18);
+    closeBtn.title = 'Fechar (Esc)';
+    closeBtn.addEventListener('click', () => closePanel());
+    head.appendChild(h);
+    head.appendChild(closeBtn);
+    panel.appendChild(head);
+
+    const content = document.createElement('div');
+    content.className = 'settings-content';
+    panel.appendChild(content);
+
+    panelRoot.appendChild(backdrop);
+    panelRoot.appendChild(panel);
+    panelEl = { panel, backdrop };
+    window.addEventListener('keydown', onPanelEsc, true);
+    renderSection(content);
+  }
+
   /* ---------- boot ---------- */
 
   function init() {
@@ -261,12 +327,12 @@
       loadFirebase().catch(() => {});
     }
     const btn = document.getElementById('btn-account');
-    if (btn) btn.addEventListener('click', () => E.settings.open('account'));
+    if (btn) btn.addEventListener('click', openPanel);
   }
 
   function onChange(fn) {
     listeners.push(fn);
   }
 
-  E.account = { init, renderSection, onChange, current: () => user };
+  E.account = { init, renderSection, openPanel, closePanel, onChange, current: () => user };
 })();

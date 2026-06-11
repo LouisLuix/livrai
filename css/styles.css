@@ -2489,6 +2489,13 @@ input.post-date:hover {
 
 /* ===== Conta ===== */
 
+.account-panel {
+  width: min(460px, 100vw);
+}
+.account-panel .settings-content {
+  padding: 24px 26px 40px;
+}
+
 .account-avatar {
   display: inline-flex;
   align-items: center;
