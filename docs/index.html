@@ -74,8 +74,50 @@
     .open p { color: var(--muted); line-height: 1.7; margin-bottom: 14px; }
 
     footer { border-top: 1px solid var(--line); padding: 34px 0 60px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; color: var(--faint); font-size: 13px; }
-    footer .pix { color: var(--muted); }
     @media (max-width: 640px) { nav .links a:not(.btn) { display: none; } }
+
+    /* ===== Universo ao vivo (demo interativa) ===== */
+    .uni-demo { position: relative; height: clamp(440px, 64vh, 640px); margin: clamp(40px, 7vh, 80px) 0;
+      border: 1px solid var(--line-strong); border-radius: 18px; overflow: hidden; cursor: grab;
+      background: radial-gradient(ellipse 90% 70% at 50% 45%, rgba(255,92,38,0.05), transparent 60%), var(--bg-soft);
+      box-shadow: 0 40px 120px rgba(0,0,0,0.55); user-select: none; -webkit-user-select: none; touch-action: pan-y; }
+    .uni-demo.grabbing { cursor: grabbing; }
+    .uni-demo-scene { position: absolute; top: 50%; left: 50%; width: 0; height: 0; transform-style: preserve-3d; will-change: transform; }
+    .uni-demo-card { position: absolute; top: 0; left: 0; width: 240px; height: 175px; background: var(--panel);
+      border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;
+      backface-visibility: hidden; -webkit-backface-visibility: hidden; opacity: var(--vis, 1);
+      transition: opacity 0.25s linear, border-color 0.18s; }
+    .uni-demo-card:hover { border-color: var(--accent); }
+    .uni-demo-card.dim { opacity: calc(var(--vis, 1) * 0.07); }
+    .uni-demo-cover { flex: 1; border-bottom: 1px solid var(--line); }
+    .uni-demo-info { padding: 9px 12px 10px; background: rgba(10,10,11,0.55); }
+    .uni-demo-name { font-family: var(--display); font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .uni-demo-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .uni-demo-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .uni-demo-search { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 5;
+      display: flex; align-items: center; gap: 10px; width: min(400px, calc(100% - 40px));
+      background: rgba(18,18,20,0.82); backdrop-filter: blur(16px); border: 1px solid var(--line-strong);
+      border-radius: 99px; padding: 11px 20px; }
+    .uni-demo-search svg { color: var(--faint); flex-shrink: 0; }
+    .uni-demo-search input { flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+      color: var(--text); font: 14px var(--body); }
+    .uni-demo-search input::placeholder { color: var(--faint); }
+    .uni-demo-hint { position: absolute; left: 50%; top: 18px; transform: translateX(-50%);
+      font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--faint); pointer-events: none; white-space: nowrap; }
+
+    /* ===== Apoie o projeto ===== */
+    .donate { background: var(--bg-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .donate-box { display: flex; gap: 36px; align-items: center; flex-wrap: wrap; }
+    .donate-box > div { flex: 1; min-width: 280px; }
+    .donate-box p { color: var(--muted); line-height: 1.7; margin-bottom: 14px; }
+    .pix-card { flex: 0 0 320px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 18px; padding: 28px; text-align: center; }
+    .pix-card .mono { color: var(--faint); }
+    .pix-key { margin: 16px 0; padding: 14px; background: var(--bg); border: 1px dashed var(--line-strong);
+      border-radius: 12px; font-family: var(--mono); font-size: 12px; color: var(--muted); word-break: break-all; }
+    .pix-key.soon { color: var(--faint); letter-spacing: 0.12em; text-transform: uppercase; font-size: 10.5px; }
+    .pix-copy { width: 100%; justify-content: center; }
+    .pix-copy[disabled] { opacity: 0.45; cursor: default; }
   </style>
 </head>
 <body>
@@ -88,6 +130,7 @@
       <div class="links">
         <a href="#recursos">Recursos</a>
         <a href="#opensource">Open source</a>
+        <a href="#apoie">Apoiar</a>
         <a href="https://github.com/LouisLuix/livrai">GitHub</a>
         <a class="btn primary" href="#download">Baixar</a>
       </div>
@@ -107,7 +150,14 @@
       <p class="cta-note mono">Grátis · Open source · Sem conta obrigatória · Mac e Windows</p>
     </header>
 
-    <div class="shot"><img src="assets/universo.png" alt="Galeria Universo do LIVRAI: projetos numa parede 3D em 360 graus"></div>
+    <div class="uni-demo" id="uni-demo" aria-label="Demonstração interativa da galeria Universo">
+      <p class="uni-demo-hint">Isto é o Universo do LIVRAI — arraste pra girar, busque embaixo</p>
+      <div class="uni-demo-scene" id="uni-demo-scene"></div>
+      <div class="uni-demo-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg>
+        <input id="uni-demo-q" type="text" placeholder="Buscar projeto, cliente, fase…" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
 
     <section id="recursos">
       <p class="eyebrow mono">O que tem dentro</p>
@@ -169,6 +219,26 @@
     </div>
   </section>
 
+  <section class="donate" id="apoie">
+    <div class="wrap">
+      <div class="donate-box">
+        <div>
+          <p class="eyebrow mono">Apoie o projeto</p>
+          <h2 class="sec-title">Feito livre,<br>mantido por você</h2>
+          <p>O LIVRAI é gratuito e de código aberto — sem mensalidade, sem anúncio, sem vender seus dados. Se ele organiza o seu trabalho, considere apoiar o desenvolvimento com uma doação de qualquer valor via PIX. Cada contribuição vira tempo de desenvolvimento de novas ferramentas.</p>
+        </div>
+        <div class="pix-card">
+          <p class="mono">Doação via PIX</p>
+          <div class="pix-key soon" id="pix-key">Chave PIX em breve</div>
+          <button class="btn pix-copy" id="pix-copy" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="1.6"/><path d="M5 14.5H4.5A1.5 1.5 0 0 1 3 13V4.5A1.5 1.5 0 0 1 4.5 3H13a1.5 1.5 0 0 1 1.5 1.5V5"/></svg>
+            <span>Copiar chave</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div class="wrap">
     <section class="open" id="opensource">
       <div>
@@ -198,6 +268,136 @@
       var note = document.querySelector('#dl-main span');
       if (/Win/i.test(p)) note.textContent = 'Baixar pra Windows';
       else if (/Mac/i.test(p)) note.textContent = 'Baixar pra Mac';
+    })();
+
+    /* ===== doação PIX (chave entra depois) ===== */
+    (function () {
+      var PIX_KEY = ''; // <- cole a chave copia-e-cola aqui quando estiver pronta
+      var keyEl = document.getElementById('pix-key');
+      var btn = document.getElementById('pix-copy');
+      if (PIX_KEY) {
+        keyEl.textContent = PIX_KEY;
+        keyEl.classList.remove('soon');
+        btn.disabled = false;
+        btn.addEventListener('click', function () {
+          navigator.clipboard.writeText(PIX_KEY).then(function () {
+            btn.querySelector('span').textContent = 'Copiada!';
+            setTimeout(function () { btn.querySelector('span').textContent = 'Copiar chave'; }, 2000);
+          });
+        });
+      }
+    })();
+
+    /* ===== Universo ao vivo: a mesma galeria 3D do app, com projetos-semente ===== */
+    (function () {
+      var stage = document.getElementById('uni-demo');
+      var scene = document.getElementById('uni-demo-scene');
+      var input = document.getElementById('uni-demo-q');
+      if (!stage || !scene) return;
+      var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      var DEMO = [
+        { name: 'Clipe Duporó', stage: 'Produção', color: '#fbbf24', g: ['#e63946', '#1a1a1d'] },
+        { name: 'Pão de Alho — Junho', stage: 'Contínuo', color: '#94a3b8', g: ['#f4a261', '#16161a'] },
+        { name: 'Coleção Verão 27', stage: 'Conceito', color: '#60a5fa', g: ['#2a9d8f', '#101013'] },
+        { name: 'Ensaio Vinil', stage: 'Edição', color: '#fb923c', g: ['#9b5de5', '#141416'] },
+        { name: 'Campanha Bebida', stage: 'Pré-produção', color: '#22d3ee', g: ['#00b4d8', '#0e0e10'] },
+        { name: 'Site Portfólio', stage: 'Aprovação', color: '#f472b6', g: ['#ff5c8a', '#121214'] },
+        { name: 'Embalagem Café', stage: 'Ideia', color: '#a78bfa', g: ['#e9c46a', '#131316'] },
+        { name: 'Documentário Bastidores', stage: 'Ideia', color: '#a78bfa', g: ['#577590', '#101012'] },
+      ];
+
+      var CW = 240, CH = 175, GAP = 22, COLS = 10, ROWS = 2;
+      var step = 360 / COLS;
+      var radius = Math.round(((CW + GAP) * COLS) / (2 * Math.PI));
+      stage.style.perspective = Math.round(radius * 1.15) + 'px';
+
+      var cells = [];
+      var total = COLS * ROWS;
+      for (var i = 0; i < total; i++) {
+        var p = DEMO[i % DEMO.length];
+        var row = Math.floor(i / COLS), col = i % COLS;
+        var angle = col * step + (row % 2 ? step / 2 : 0) + (Math.random() - 0.5) * step * 0.3;
+        var y = (row - (ROWS - 1) / 2) * (CH + GAP) + (Math.random() - 0.5) * 44;
+        var r = radius * (0.92 + Math.random() * 0.18);
+        var scale = 0.86 + Math.random() * 0.24;
+        var spin = (Math.random() - 0.5) * 4.5;
+        var el = document.createElement('div');
+        el.className = 'uni-demo-card';
+        el.innerHTML =
+          '<div class="uni-demo-cover" style="background:linear-gradient(150deg,' + p.g[0] + ',' + p.g[1] + ' 85%)"></div>' +
+          '<div class="uni-demo-info"><div class="uni-demo-name">' + p.name + '</div>' +
+          '<div class="uni-demo-meta"><span class="uni-demo-dot" style="background:' + p.color + '"></span><span>' + p.stage + '</span></div></div>';
+        scene.appendChild(el);
+        cells.push({ el: el, angle: angle, y: y, r: r, scale: scale, spin: spin, p: p });
+      }
+
+      var rot = 0, tilt = -4, vel = 0, dragging = false, last = performance.now(), lastTouch = 0;
+      var born = performance.now();
+
+      stage.addEventListener('pointerdown', function (e) {
+        if (e.target.closest('.uni-demo-search')) return;
+        e.preventDefault();
+        dragging = true;
+        stage.classList.add('grabbing');
+        var sx = e.clientX, sy = e.clientY, r0 = rot, t0 = tilt, lx = sx, lt = performance.now();
+        function mv(ev) {
+          rot = r0 + (ev.clientX - sx) * 0.16;
+          tilt = Math.max(-16, Math.min(14, t0 - (ev.clientY - sy) * 0.05));
+          var now = performance.now();
+          vel = ((ev.clientX - lx) / Math.max(1, now - lt)) * 2.6;
+          lx = ev.clientX; lt = now; lastTouch = now;
+        }
+        function up() {
+          window.removeEventListener('pointermove', mv);
+          window.removeEventListener('pointerup', up);
+          dragging = false;
+          stage.classList.remove('grabbing');
+          lastTouch = performance.now();
+        }
+        window.addEventListener('pointermove', mv);
+        window.addEventListener('pointerup', up);
+      });
+
+      var query = '';
+      if (input) {
+        input.addEventListener('input', function () {
+          query = input.value.trim().toLowerCase();
+          cells.forEach(function (c) {
+            var hay = (c.p.name + ' ' + c.p.stage).toLowerCase();
+            c.el.classList.toggle('dim', !!query && hay.indexOf(query) < 0);
+          });
+        });
+      }
+
+      function tick() {
+        var now = performance.now();
+        var t = (now - born) / 1000;
+        if (!dragging) {
+          rot += vel; vel *= 0.94;
+          if (Math.abs(vel) < 0.002) vel = 0;
+          if (!reduced && !query) rot += now - lastTouch > 1600 ? 0.028 : 0.007;
+        }
+        var bobX = reduced ? 0 : Math.sin(t * 0.31) * 2.2;
+        var rollZ = reduced ? 0 : Math.sin(t * 0.21 + 1.4) * 1.1;
+        scene.style.transform = 'rotateZ(' + rollZ.toFixed(3) + 'deg) rotateX(' + (tilt + bobX).toFixed(3) + 'deg) rotateY(' + rot.toFixed(3) + 'deg)';
+        for (var i = 0; i < cells.length; i++) {
+          var c = cells[i];
+          var eff = ((((c.angle + rot + 180) % 360) + 360) % 360) - 180;
+          var a = Math.abs(eff);
+          var vis = a >= 110 ? 0 : a <= 94 ? 1 : (110 - a) / 16;
+          var hidden = vis <= 0 ? 'hidden' : '';
+          if (c.el.style.visibility !== hidden) c.el.style.visibility = hidden;
+          if (vis > 0) {
+            c.el.style.setProperty('--vis', vis.toFixed(3));
+            c.el.style.transform = 'translate(-50%, -50%) rotateY(' + c.angle + 'deg) translateZ(' + -c.r +
+              'px) translateY(' + c.y + 'px) rotateZ(' + c.spin + 'deg) scale(' + c.scale +
+              ') rotateY(' + (-eff * 0.55).toFixed(2) + 'deg)';
+          }
+        }
+        requestAnimationFrame(tick);
+      }
+      tick();
     })();
   </script>
 </body>
