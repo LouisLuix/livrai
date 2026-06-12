@@ -206,6 +206,7 @@
     batch.delete(db.collection('gallery').doc(shareId));
     batch.delete(ref);
     await batch.commit();
+    localStorage.removeItem('livrai-share-pass:' + shareId);
   }
   E.share.revoke = revoke;
 
@@ -273,14 +274,17 @@
 
     const st = E.canvas.getState();
     const boardId = st.project.lastBoard || (st.project.boards && st.project.boards[0].id);
-    const isUpdate = !!(st.project.shares && st.project.shares[boardId]);
+    const existingId = (st.project.shares && st.project.shares[boardId]) || null;
+    const isUpdate = !!existingId;
+    // a senha nunca sai do computador — fica guardada AQUI pra reexibição
+    const savedPass = existingId ? localStorage.getItem('livrai-share-pass:' + existingId) || '' : '';
 
     const p = document.createElement('p');
     p.className = 'modal-msg';
     p.textContent =
       'Gera um link público SÓ DE VISUALIZAÇÃO da aba atual (' + st.items.length + ' itens). ' +
       'Vídeos e geradores de IA ficam de fora. ' +
-      (isUpdate ? 'Este board já tem um link — publicar de novo ATUALIZA o mesmo link.' : '');
+      (isUpdate ? 'Este board já tem um link publicado — ele aparece abaixo, e publicar de novo ATUALIZA o mesmo link.' : '');
     box.appendChild(p);
 
     const passLabel = document.createElement('label');
@@ -291,7 +295,14 @@
     passInput.placeholder = 'sem senha = link aberto';
     passInput.autocomplete = 'off';
     passInput.spellcheck = false;
+    passInput.value = savedPass;
     passLabel.appendChild(passInput);
+    if (savedPass) {
+      const hint = document.createElement('span');
+      hint.className = 'share-pass-hint mono';
+      hint.textContent = 'essa é a senha atual do link — mude e atualize, ou apague pra abrir o link';
+      passLabel.appendChild(hint);
+    }
     box.appendChild(passLabel);
 
     const galLabel = document.createElement('label');
@@ -311,6 +322,28 @@
     result.className = 'share-result hidden';
     box.appendChild(result);
 
+    function showResult(url) {
+      result.classList.remove('hidden');
+      result.innerHTML = '';
+      const urlEl = document.createElement('input');
+      urlEl.type = 'text';
+      urlEl.readOnly = true;
+      urlEl.value = url;
+      urlEl.className = 'share-url mono';
+      urlEl.addEventListener('focus', () => urlEl.select());
+      const copy = document.createElement('button');
+      copy.className = 'btn';
+      E.setLabel(copy, 'copy', 'Copiar link');
+      copy.addEventListener('click', () => {
+        navigator.clipboard.writeText(url).then(() => E.ui.toast('Link copiado'));
+      });
+      result.appendChild(urlEl);
+      result.appendChild(copy);
+    }
+
+    // link já existe? mostra na hora, sem precisar republicar
+    if (existingId) showResult(VIEW_URL + existingId);
+
     const row = document.createElement('div');
     row.className = 'modal-actions';
     const cancel = document.createElement('button');
@@ -328,23 +361,11 @@
       go.disabled = true;
       E.setLabel(go, 'refresh', 'Publicando…');
       try {
-        const r = await publish({ password: passInput.value.trim(), gallery: galInput.checked });
-        result.classList.remove('hidden');
-        result.innerHTML = '';
-        const urlEl = document.createElement('input');
-        urlEl.type = 'text';
-        urlEl.readOnly = true;
-        urlEl.value = r.url;
-        urlEl.className = 'share-url mono';
-        urlEl.addEventListener('focus', () => urlEl.select());
-        const copy = document.createElement('button');
-        copy.className = 'btn';
-        E.setLabel(copy, 'copy', 'Copiar link');
-        copy.addEventListener('click', () => {
-          navigator.clipboard.writeText(r.url).then(() => E.ui.toast('Link copiado'));
-        });
-        result.appendChild(urlEl);
-        result.appendChild(copy);
+        const pass = passInput.value.trim();
+        const r = await publish({ password: pass, gallery: galInput.checked });
+        if (pass) localStorage.setItem('livrai-share-pass:' + r.id, pass);
+        else localStorage.removeItem('livrai-share-pass:' + r.id);
+        showResult(r.url);
         E.ui.toast(r.updated ? 'Link atualizado' : 'Link publicado');
         E.setLabel(go, 'arrow-up-right', 'Atualizar link');
         go.disabled = false;
@@ -388,11 +409,13 @@
         row.className = 'share-row';
         const info = document.createElement('div');
         info.className = 'share-row-info';
+        const localPass = localStorage.getItem('livrai-share-pass:' + d.id);
         info.innerHTML =
           '<strong>' + E.escapeHtml(d.title || 'Deck') + '</strong>' +
           '<span class="mono">' +
           new Date(d.updatedAt || d.createdAt || 0).toLocaleDateString('pt-BR') +
-          (d.enc ? ' · com senha' : '') + (d.gallery ? ' · na galeria' : '') +
+          (d.enc ? ' · senha: ' + (localPass ? E.escapeHtml(localPass) : '••• (definida em outro computador)') : '') +
+          (d.gallery ? ' · na galeria' : '') +
           '</span>';
         const copy = document.createElement('button');
         copy.className = 'btn ghost icon-only';

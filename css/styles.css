@@ -1539,13 +1539,26 @@ body.kb-dragging * {
   outline: none;
   border-color: var(--accent);
 }
-.share-check {
+.modal label.share-check {
   display: flex;
+  flex-direction: row;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   font-size: 13px;
   color: var(--muted);
   cursor: pointer;
+}
+.modal .share-check input {
+  width: auto;
+  flex: none;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.share-pass-hint {
+  font-size: 10.5px;
+  color: var(--accent);
+  opacity: 0.85;
 }
 .share-result {
   display: flex;
