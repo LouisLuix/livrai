@@ -1004,6 +1004,51 @@
     return { blobId: it.content.blobId, kind: it.kind === 'video' ? 'video' : 'image' };
   }
 
+  /* Setas do fluxograma sobrevivem quando cards somem pra dentro de um post:
+     toda conexão de/para os cards absorvidos passa a ser do post */
+  function transferEdges(absorbed, target) {
+    const goneIds = new Set(absorbed.map((it) => it.id));
+    if (!target.content.next) target.content.next = [];
+
+    // saídas: setas que partiam das imagens agora partem do post
+    absorbed.forEach((it) => {
+      const edges = it.content && Array.isArray(it.content.next) ? it.content.next : [];
+      edges.forEach((e) => {
+        if (goneIds.has(e.to) || e.to === target.id) return; // interna ao grupo
+        if (!target.content.next.some((x) => x.to === e.to)) {
+          target.content.next.push({ to: e.to, label: e.label || '' });
+        }
+      });
+    });
+
+    // entradas: setas que chegavam nas imagens agora chegam no post
+    allList.forEach((src) => {
+      if (goneIds.has(src.id) || src.id === target.id) return;
+      const edges = src.content && Array.isArray(src.content.next) ? src.content.next : null;
+      if (!edges || !edges.length) return;
+      let changed = false;
+      const kept = new Set(edges.filter((e) => !goneIds.has(e.to)).map((e) => e.to));
+      const remapped = [];
+      edges.forEach((e) => {
+        if (!goneIds.has(e.to)) {
+          remapped.push(e);
+          return;
+        }
+        changed = true;
+        if (!kept.has(target.id)) {
+          remapped.push({ to: target.id, label: e.label || '' });
+          kept.add(target.id);
+        }
+      });
+      if (changed) {
+        src.content.next = remapped;
+        saveItem(src);
+      }
+    });
+
+    saveItem(target);
+  }
+
   /* Vários itens selecionados viram um post carrossel (ordem: esquerda → direita).
      Os cards originais SOMEM do canvas — as imagens passam a viver só dentro
      do post (Cmd+Z desfaz e traz os cards de volta). */
@@ -1020,6 +1065,7 @@
       h: 380,
       content: { text: '', date: '', status: 'ideia', media: media, mediaIndex: 0 },
     });
+    transferEdges(list, post); // setas do fluxograma continuam — agora no post
     removeItems(list);
     selectOnly(post.id);
     E.ui.toast(
@@ -1045,6 +1091,7 @@
     post.content.media = media;
     delete post.content.blobId;
     growPost(post);
+    transferEdges(list, post); // setas do fluxograma continuam — agora no post
     removeItems(list); // os cards somem — as mídias agora vivem dentro do post
     E.items.refreshBody(post, els.get(post.id), saveItem);
     saveItem(post);
