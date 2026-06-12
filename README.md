@@ -64,3 +64,5 @@ desktop/        → empacotamento Electron (macOS/Windows)
 [MIT](LICENSE) — use, estude, modifique e redistribua livremente.
 
 Criado e desenvolvido por **Luis Gustavo Felix** ([@luisluix](https://instagram.com/luisluix))
+
+Siga o projeto no Instagram: [@livr_ai](https://instagram.com/livr_ai)

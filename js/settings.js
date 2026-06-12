@@ -609,6 +609,12 @@
       '</div>' +
 
       '<div class="settings-block">' +
+      '<h4>' + E.icon('smartphone', 16) + '<span>LIVRAI nas redes</span></h4>' +
+      '<p>Siga o projeto: novidades, bastidores e trabalhos da comunidade.</p>' +
+      '<p><a class="about-handle mono" href="https://instagram.com/livr_ai" target="_blank" rel="noopener">@livr_ai</a></p>' +
+      '</div>' +
+
+      '<div class="settings-block">' +
       '<h4>' + E.icon('pencil', 16) + '<span>Desenvolvedor</span></h4>' +
       '<p>Criado e desenvolvido por <strong>Luis Gustavo Felix</strong> ' +
       '<a class="about-handle mono" href="https://instagram.com/luisluix" target="_blank" rel="noopener">@luisluix</a></p>' +
