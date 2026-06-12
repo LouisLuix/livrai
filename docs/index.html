@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0a0a0b; --bg-soft: #0f0f11; --panel: #121214; --panel-2: #18181b;
+      --bg: #0a0a0b; --bg-soft: #0f0f11; --panel: #121214; --panel-2: #18181b; --panel-3: #1f1f23;
       --line: rgba(255,255,255,0.07); --line-strong: rgba(255,255,255,0.14);
       --text: #f1efe9; --muted: #908e86; --faint: #5c5b55;
       --accent: #ff5c26; --accent-ink: #160a05;
@@ -21,12 +21,14 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     ::selection { background: var(--accent); color: var(--accent-ink); }
     html { scroll-behavior: smooth; }
-    body { background: var(--bg); color: var(--text); font-family: var(--body); font-size: 16px; -webkit-font-smoothing: antialiased; }
+    body { background: var(--bg); color: var(--text); font-family: var(--body); font-size: 16px; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
     a { color: inherit; text-decoration: none; }
+    button { font: inherit; color: inherit; cursor: pointer; background: transparent; border: none; }
     .mono { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; }
-    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 48px); }
+    .wrap { max-width: 1160px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 48px); }
 
-    nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+    /* ===== nav fixa ===== */
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 16px clamp(20px, 4vw, 40px); background: linear-gradient(rgba(10,10,11,0.85), transparent); }
     .brand { display: flex; align-items: center; gap: 10px; color: var(--accent); }
     .brand strong { font-family: var(--display); font-weight: 700; letter-spacing: 0.22em; font-size: 15px; color: var(--text); }
     .brand span { font-family: var(--mono); font-size: 10px; letter-spacing: 0.26em; color: var(--faint); border-left: 1px solid var(--line-strong); padding-left: 12px; }
@@ -34,206 +36,403 @@
     nav .links a { color: var(--muted); font-size: 13.5px; font-weight: 500; transition: color 0.18s; }
     nav .links a:hover { color: var(--text); }
 
-    button.btn { background: transparent; color: var(--text); font-family: var(--body); }
-    .btn { display: inline-flex; align-items: center; gap: 9px; border-radius: 99px; padding: 13px 26px; font-weight: 600; font-size: 14.5px; border: 1px solid var(--line-strong); color: var(--text); transition: all 0.2s var(--ease); cursor: pointer; }
+    .btn { display: inline-flex; align-items: center; gap: 9px; border-radius: 99px; padding: 13px 26px; font-weight: 600; font-size: 14.5px; border: 1px solid var(--line-strong); color: var(--text); transition: all 0.2s var(--ease); cursor: pointer; background: rgba(10,10,11,0.45); }
     .btn:hover { border-color: var(--accent); transform: translateY(-1px); }
     .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
     .btn.primary:hover { background: #ff6e3e; }
+    nav .btn { padding: 9px 20px; font-size: 13px; }
 
-    header { padding: clamp(60px, 11vh, 120px) 0 30px; }
+    /* ===== HERO: o Universo em tela cheia, igual ao app ===== */
+    .hero { position: relative; height: 100vh; min-height: 640px; overflow: hidden; cursor: grab;
+      background: radial-gradient(ellipse 90% 70% at 50% 45%, rgba(255,92,38,0.06), transparent 60%), var(--bg);
+      user-select: none; -webkit-user-select: none; }
+    .hero.grabbing { cursor: grabbing; }
+    .uni-scene { position: absolute; top: 50%; left: 50%; width: 0; height: 0; transform-style: preserve-3d; will-change: transform; }
+    .uni-card { position: absolute; top: 0; left: 0; width: 270px; height: 195px; background: var(--panel);
+      border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;
+      backface-visibility: hidden; -webkit-backface-visibility: hidden; opacity: var(--vis, 1);
+      transition: opacity 0.25s linear, border-color 0.18s; }
+    .uni-card:hover { border-color: var(--accent); }
+    .uni-card.dim { opacity: calc(var(--vis, 1) * 0.07); }
+    .uni-cover { flex: 1; border-bottom: 1px solid var(--line); }
+    .uni-info { padding: 10px 13px 11px; background: rgba(10,10,11,0.55); }
+    .uni-name { font-family: var(--display); font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .uni-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .uni-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+    .hero-overlay { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 clamp(20px, 5vw, 64px) clamp(86px, 13vh, 130px); pointer-events: none;
+      background: linear-gradient(transparent 28%, rgba(10,10,11,0.5) 70%, rgba(10,10,11,0.92)); }
     .eyebrow { display: flex; align-items: center; gap: 14px; color: var(--muted); }
     .eyebrow::after { content: ''; flex: 0 0 64px; height: 1px; background: var(--line-strong); }
-    h1 { font-family: var(--display); font-weight: 700; font-size: clamp(54px, 9.5vw, 128px); line-height: 0.96; letter-spacing: -0.035em; text-transform: uppercase; margin: 22px 0 26px; }
+    h1 { font-family: var(--display); font-weight: 700; font-size: clamp(48px, 8.5vw, 116px); line-height: 0.96; letter-spacing: -0.035em; text-transform: uppercase; margin: 16px 0 18px; }
+    h1 .ln { display: block; overflow: hidden; }
+    h1 .ln span { display: inline-block; transform: translateY(110%); animation: rise 0.9s var(--ease) forwards; }
+    h1 .ln:nth-child(2) span { animation-delay: 0.1s; }
+    @keyframes rise { to { transform: none; } }
     h1 em { font-style: normal; color: transparent; -webkit-text-stroke: 1.5px var(--text); }
-    h1 em:hover { color: var(--accent); -webkit-text-stroke: 1.5px var(--accent); transition: 0.5s var(--ease); }
-    .lede { max-width: 560px; color: var(--muted); font-size: 17px; line-height: 1.65; }
-    .cta { display: flex; gap: 12px; flex-wrap: wrap; margin: 36px 0 14px; }
-    .cta-note { color: var(--faint); font-size: 12.5px; }
+    .lede { max-width: 520px; color: var(--muted); font-size: 16px; line-height: 1.6; }
+    .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; pointer-events: auto; }
+    .hero-note { margin-top: 14px; color: var(--faint); font-size: 12px; }
 
-    .shot { margin: clamp(40px, 7vh, 80px) 0; border: 1px solid var(--line-strong); border-radius: 18px; overflow: hidden; box-shadow: 0 40px 120px rgba(0,0,0,0.55); }
-    .shot img { width: 100%; display: block; }
+    .uni-search { position: absolute; right: clamp(20px, 4vw, 56px); bottom: clamp(86px, 13vh, 130px); z-index: 6;
+      display: flex; align-items: center; gap: 10px; width: min(330px, calc(100vw - 40px));
+      background: rgba(18,18,20,0.82); backdrop-filter: blur(16px); border: 1px solid var(--line-strong);
+      border-radius: 99px; padding: 12px 20px; }
+    .uni-search svg { color: var(--faint); flex-shrink: 0; }
+    .uni-search input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: var(--text); font: 14px var(--body); }
+    .uni-search input::placeholder { color: var(--faint); }
 
-    section { padding: clamp(40px, 8vh, 90px) 0; }
-    .sec-title { font-family: var(--display); font-weight: 700; font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.02em; text-transform: uppercase; margin: 14px 0 38px; }
-    .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
-    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 26px; transition: border-color 0.2s, transform 0.3s var(--ease); }
-    .card:hover { border-color: var(--line-strong); transform: translateY(-3px); }
-    .card svg { color: var(--accent); margin-bottom: 16px; }
-    .card h3 { font-family: var(--display); font-size: 17px; font-weight: 600; margin-bottom: 9px; }
-    .card p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .hero-hint { position: absolute; top: 76px; left: 50%; transform: translateX(-50%); z-index: 5;
+      font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint); pointer-events: none; white-space: nowrap; }
+    .scroll-cue { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 7px; color: var(--faint); pointer-events: none; }
+    .scroll-cue svg { animation: cue 1.8s var(--ease) infinite; }
+    @keyframes cue { 0%,100% { transform: translateY(0); opacity: 0.5; } 50% { transform: translateY(7px); opacity: 1; } }
 
-    .dl { background: var(--bg-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-    .dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-top: 10px; }
+    /* ===== capítulos com reveal no scroll ===== */
+    .chapter { padding: clamp(80px, 14vh, 150px) 0; }
+    .chapter .wrap { display: grid; grid-template-columns: minmax(300px, 0.9fr) minmax(320px, 1.1fr); gap: clamp(30px, 6vw, 80px); align-items: center; }
+    .chapter.flip .wrap { direction: rtl; }
+    .chapter.flip .wrap > * { direction: ltr; }
+    .ch-num { display: flex; align-items: center; gap: 14px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); }
+    .ch-num::after { content: ''; flex: 0 0 56px; height: 1px; background: var(--line-strong); }
+    .ch-title { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 4.4vw, 52px); line-height: 1.02; letter-spacing: -0.025em; text-transform: uppercase; margin: 16px 0 18px; }
+    .ch-copy { color: var(--muted); font-size: 15.5px; line-height: 1.7; max-width: 440px; }
+    [data-reveal] { opacity: 0; transform: translateY(34px); transition: opacity 0.9s var(--ease), transform 0.9s var(--ease); transition-delay: var(--d, 0s); }
+    .in [data-reveal] { opacity: 1; transform: none; }
+
+    /* moldura de app dos mockups */
+    .mock { position: relative; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 16px; overflow: hidden; box-shadow: 0 36px 100px rgba(0,0,0,0.55); }
+    .mock-bar { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--line); background: var(--bg-soft); }
+    .mock-bar svg { color: var(--accent); flex-shrink: 0; }
+    .mock-bar strong { font-family: var(--display); font-size: 12.5px; font-weight: 600; }
+    .mock-bar .tag { margin-left: auto; font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; }
+
+    /* — cap 1: canvas que se monta sozinho — */
+    .cv { position: relative; height: 420px; background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 24px 24px; }
+    .cv-item { position: absolute; border-radius: 10px; opacity: 0; transform: translateY(26px) scale(0.92); transition: opacity 0.7s var(--ease), transform 0.7s var(--ease); transition-delay: var(--d, 0s); box-shadow: 0 6px 22px rgba(0,0,0,0.4); }
+    .in .cv-item { opacity: 1; transform: none; }
+    .cv-label { left: 26px; top: 24px; font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: 0.02em; text-transform: uppercase; box-shadow: none; }
+    .cv-note { left: 26px; top: 64px; width: 195px; padding: 13px 15px; background: #efe3a2; color: #2a2408; font-size: 11.5px; line-height: 1.55; }
+    .cv-img1 { left: 245px; top: 62px; width: 165px; height: 120px; background: linear-gradient(150deg, #e63946, #1a1a1d 90%); }
+    .cv-img2 { left: 280px; top: 205px; width: 130px; height: 96px; background: linear-gradient(150deg, #2a9d8f, #101013 90%); }
+    .cv-frame { left: 445px; top: 50px; width: 150px; height: 265px; border: 1.5px dashed var(--line-strong); background: rgba(255,255,255,0.02); border-radius: 6px; box-shadow: none; }
+    .cv-frame i { position: absolute; top: -22px; left: 0; font: 500 8.5px var(--mono); letter-spacing: 0.14em; color: var(--muted); font-style: normal; text-transform: uppercase; }
+    .cv-post { left: 26px; top: 232px; width: 200px; background: var(--panel-2); border: 1px solid var(--line); padding: 11px 13px; }
+    .cv-post .d { font-family: var(--mono); font-size: 9px; color: var(--muted); background: var(--panel-3); border-radius: 6px; padding: 3px 8px; display: inline-block; }
+    .cv-post .s { float: right; font: 700 8.5px var(--body); letter-spacing: 0.04em; background: #fbbf24; color: #14120a; border-radius: 99px; padding: 3px 9px; }
+    .cv-post p { clear: both; padding-top: 9px; font-size: 11.5px; color: var(--text); }
+    .cv-sw { width: 44px; height: 44px; border-radius: 9px; }
+    .cv-sw.a { left: 26px; top: 348px; background: #a78bfa; }
+    .cv-sw.b { left: 80px; top: 348px; background: #fbbf24; }
+    .cv-sw.c { left: 134px; top: 348px; background: #34d399; }
+    /* cursor que arrasta a imagem verde */
+    .cv-cursor { position: absolute; z-index: 5; left: 0; top: 0; pointer-events: none; opacity: 0; }
+    .in .cv-cursor { animation: curmove 7s var(--ease) 1.4s infinite; }
+    .in .cv-img2 { animation: imgmove 7s var(--ease) 1.4s infinite; }
+    @keyframes curmove {
+      0%, 8% { opacity: 0; transform: translate(560px, 380px); }
+      18% { opacity: 1; transform: translate(350px, 250px); }
+      26% { transform: translate(345px, 248px) scale(0.88); }
+      48% { transform: translate(485px, 150px) scale(0.88); }
+      56% { transform: translate(490px, 152px) scale(1); }
+      70%, 100% { opacity: 0; transform: translate(620px, 320px); }
+    }
+    @keyframes imgmove {
+      0%, 26% { transform: none; }
+      48%, 70% { transform: translate(140px, -98px) scale(0.96); }
+      82%, 100% { transform: none; }
+    }
+
+    /* — cap 2: kanban com card viajando — */
+    .kb { position: relative; display: flex; gap: 12px; padding: 18px; height: 380px; }
+    .kb-col { flex: 1; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .kb-head { display: flex; align-items: center; gap: 7px; font-family: var(--display); font-weight: 600; font-size: 11.5px; padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
+    .kb-card { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 10px 11px; font-family: var(--display); font-weight: 600; font-size: 11px; color: var(--muted); opacity: 0; transform: translateY(18px); transition: opacity 0.6s var(--ease), transform 0.6s var(--ease); transition-delay: var(--d, 0s); }
+    .in .kb-card { opacity: 1; transform: none; }
+    .kb-fly { position: absolute; z-index: 5; width: 158px; left: 30px; top: 96px; background: var(--panel); border: 1px solid var(--accent); border-radius: 9px; padding: 10px 11px; font-family: var(--display); font-weight: 600; font-size: 11px; box-shadow: 0 18px 50px rgba(0,0,0,0.6); opacity: 0; }
+    .kb-fly .mono { display: block; margin-top: 5px; font-size: 7.5px; color: var(--accent); }
+    .in .kb-fly { animation: kbfly 8s var(--ease) 1s infinite; }
+    @keyframes kbfly {
+      0%, 6% { opacity: 0; transform: translate(0, 0) rotate(0); }
+      12%, 26% { opacity: 1; transform: translate(0, 0) rotate(0); }
+      40%, 54% { opacity: 1; transform: translate(178px, 26px) rotate(2.5deg); }
+      68%, 84% { opacity: 1; transform: translate(356px, -12px) rotate(-1.5deg); }
+      94%, 100% { opacity: 0; transform: translate(356px, -12px); }
+    }
+    .in .kb-col:nth-child(2) { animation: kbglow 8s 1s infinite; }
+    .in .kb-col:nth-child(3) { animation: kbglow2 8s 1s infinite; }
+    @keyframes kbglow { 28%, 52% { border-color: var(--accent); background: rgba(255,92,38,0.07); } 0%, 20%, 60%, 100% { border-color: var(--line); } }
+    @keyframes kbglow2 { 56%, 86% { border-color: var(--accent); background: rgba(255,92,38,0.07); } 0%, 48%, 94%, 100% { border-color: var(--line); } }
+
+    /* — cap 3: cronograma povoando — */
+    .cal { padding: 18px; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .cal-day { aspect-ratio: 1.15; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 8px; padding: 6px; font-family: var(--mono); font-size: 8.5px; color: var(--faint); position: relative; }
+    .cal-day.today { border-color: var(--accent); }
+    .cal-chip { position: absolute; left: 5px; right: 5px; bottom: 5px; border-radius: 4px; padding: 3px 5px; font: 500 7.5px var(--body); color: var(--text); background: var(--panel-3); border-left: 2.5px solid var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: scale(0.7); transition: opacity 0.5s var(--ease), transform 0.5s var(--ease); transition-delay: var(--d, 0s); }
+    .in .cal-chip { opacity: 1; transform: none; }
+    .cal-status { margin-top: 16px; display: flex; align-items: center; gap: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px; }
+    .cal-status p { font-size: 12px; color: var(--text); flex: 1; }
+    .cal-pill { position: relative; width: 86px; height: 24px; }
+    .cal-pill span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: 99px; font: 700 9px var(--body); color: #14120a; opacity: 0; }
+    .in .cal-pill span:nth-child(1) { background: #a78bfa; animation: pill 9s infinite; }
+    .in .cal-pill span:nth-child(2) { background: #60a5fa; animation: pill 9s 1.8s infinite; }
+    .in .cal-pill span:nth-child(3) { background: #fbbf24; animation: pill 9s 3.6s infinite; }
+    .in .cal-pill span:nth-child(4) { background: #fb923c; animation: pill 9s 5.4s infinite; }
+    .in .cal-pill span:nth-child(5) { background: #34d399; animation: pill 9s 7.2s infinite; }
+    @keyframes pill { 0%, 18% { opacity: 1; } 22%, 100% { opacity: 0; } }
+
+    /* — cap 4: gerador de IA digitando — */
+    .gen { padding: 20px; display: flex; flex-direction: column; gap: 13px; background: linear-gradient(165deg, #1b1410 0%, var(--panel) 55%); }
+    .gen-prompt { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 12.5px; line-height: 1.5; color: var(--text); min-height: 64px; }
+    .gen-prompt i { font-style: normal; }
+    .gen-prompt .caret { display: inline-block; width: 8px; height: 14px; background: var(--accent); vertical-align: -2px; margin-left: 2px; animation: blink 0.9s steps(1) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .gen-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .gen-chip { font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 5px 11px; }
+    .gen-go { margin-left: auto; background: var(--text); color: var(--bg); border-radius: 99px; padding: 8px 20px; font: 600 12px var(--body); }
+    .gen-out { position: relative; height: 175px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #0c0c0e; }
+    .gen-out .fill { position: absolute; inset: 0; background: linear-gradient(135deg, #e76f51, #9b2226 55%, #160a05); opacity: 0; }
+    .in .gen-out .fill { animation: genfill 9s var(--ease) 1s infinite; }
+    .gen-out .scan { position: absolute; left: 0; right: 0; height: 2px; background: var(--accent); box-shadow: 0 0 18px var(--accent); opacity: 0; }
+    .in .gen-out .scan { animation: scan 9s var(--ease) 1s infinite; }
+    .gen-out .gtag { position: absolute; right: 10px; bottom: 10px; font-family: var(--mono); font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text); background: rgba(10,10,11,0.7); border-radius: 99px; padding: 4px 10px; opacity: 0; }
+    .in .gen-out .gtag { animation: gentag 9s 1s infinite; }
+    @keyframes genfill { 0%, 38% { opacity: 0; } 58%, 92% { opacity: 1; } 100% { opacity: 0; } }
+    @keyframes scan { 0%, 38% { top: 0; opacity: 0; } 42% { opacity: 1; } 57% { top: 100%; opacity: 1; } 60%, 100% { opacity: 0; } }
+    @keyframes gentag { 0%, 58% { opacity: 0; } 64%, 92% { opacity: 1; } 100% { opacity: 0; } }
+
+    /* ===== bandas finais ===== */
+    section.band { padding: clamp(70px, 11vh, 120px) 0; }
+    .band.alt { background: var(--bg-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .sec-title { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 4.6vw, 54px); letter-spacing: -0.025em; text-transform: uppercase; margin: 16px 0 34px; line-height: 1.02; }
+    .dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
     .dl-card { display: flex; flex-direction: column; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 24px; transition: border-color 0.2s, transform 0.3s var(--ease); }
     .dl-card:hover { border-color: var(--accent); transform: translateY(-3px); }
     .dl-card strong { font-family: var(--display); font-size: 17px; }
     .dl-card span { color: var(--muted); font-size: 13px; }
     .dl-note { color: var(--faint); font-size: 12.5px; line-height: 1.6; margin-top: 22px; max-width: 640px; }
 
-    .open { display: flex; gap: 40px; align-items: center; flex-wrap: wrap; }
-    .open > div { flex: 1; min-width: 280px; }
-    .open p { color: var(--muted); line-height: 1.7; margin-bottom: 14px; }
-
-    footer { border-top: 1px solid var(--line); padding: 34px 0 60px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; color: var(--faint); font-size: 13px; }
-    @media (max-width: 640px) { nav .links a:not(.btn) { display: none; } }
-
-    /* ===== Universo ao vivo (demo interativa) ===== */
-    .uni-demo { position: relative; height: clamp(440px, 64vh, 640px); margin: clamp(40px, 7vh, 80px) 0;
-      border: 1px solid var(--line-strong); border-radius: 18px; overflow: hidden; cursor: grab;
-      background: radial-gradient(ellipse 90% 70% at 50% 45%, rgba(255,92,38,0.05), transparent 60%), var(--bg-soft);
-      box-shadow: 0 40px 120px rgba(0,0,0,0.55); user-select: none; -webkit-user-select: none; touch-action: pan-y; }
-    .uni-demo.grabbing { cursor: grabbing; }
-    .uni-demo-scene { position: absolute; top: 50%; left: 50%; width: 0; height: 0; transform-style: preserve-3d; will-change: transform; }
-    .uni-demo-card { position: absolute; top: 0; left: 0; width: 240px; height: 175px; background: var(--panel);
-      border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;
-      backface-visibility: hidden; -webkit-backface-visibility: hidden; opacity: var(--vis, 1);
-      transition: opacity 0.25s linear, border-color 0.18s; }
-    .uni-demo-card:hover { border-color: var(--accent); }
-    .uni-demo-card.dim { opacity: calc(var(--vis, 1) * 0.07); }
-    .uni-demo-cover { flex: 1; border-bottom: 1px solid var(--line); }
-    .uni-demo-info { padding: 9px 12px 10px; background: rgba(10,10,11,0.55); }
-    .uni-demo-name { font-family: var(--display); font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .uni-demo-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-    .uni-demo-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .uni-demo-search { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 5;
-      display: flex; align-items: center; gap: 10px; width: min(400px, calc(100% - 40px));
-      background: rgba(18,18,20,0.82); backdrop-filter: blur(16px); border: 1px solid var(--line-strong);
-      border-radius: 99px; padding: 11px 20px; }
-    .uni-demo-search svg { color: var(--faint); flex-shrink: 0; }
-    .uni-demo-search input { flex: 1; min-width: 0; background: transparent; border: none; outline: none;
-      color: var(--text); font: 14px var(--body); }
-    .uni-demo-search input::placeholder { color: var(--faint); }
-    .uni-demo-hint { position: absolute; left: 50%; top: 18px; transform: translateX(-50%);
-      font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase;
-      color: var(--faint); pointer-events: none; white-space: nowrap; }
-
-    /* ===== Apoie o projeto ===== */
-    .donate { background: var(--bg-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-    .donate-box { display: flex; gap: 36px; align-items: center; flex-wrap: wrap; }
-    .donate-box > div { flex: 1; min-width: 280px; }
-    .donate-box p { color: var(--muted); line-height: 1.7; margin-bottom: 14px; }
+    .donate-box { display: flex; gap: 40px; align-items: center; flex-wrap: wrap; }
+    .donate-box > div:first-child { flex: 1; min-width: 280px; }
+    .donate-box p { color: var(--muted); line-height: 1.7; margin-bottom: 14px; max-width: 460px; }
     .pix-card { flex: 0 0 320px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 18px; padding: 28px; text-align: center; }
     .pix-card .mono { color: var(--faint); }
     .pix-qr { width: 190px; height: 190px; border-radius: 14px; margin: 16px auto 2px; display: block; }
-    .pix-key { margin: 16px 0; padding: 14px; background: var(--bg); border: 1px dashed var(--line-strong);
-      border-radius: 12px; font-family: var(--mono); font-size: 12px; color: var(--muted); word-break: break-all; }
-    .pix-key.soon { color: var(--faint); letter-spacing: 0.12em; text-transform: uppercase; font-size: 10.5px; }
+    .pix-key { margin: 16px 0; padding: 14px; background: var(--bg); border: 1px dashed var(--line-strong); border-radius: 12px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); word-break: break-all; }
     .pix-copy { width: 100%; justify-content: center; }
-    .pix-copy[disabled] { opacity: 0.45; cursor: default; }
+
+    .open-grid p { color: var(--muted); line-height: 1.7; margin-bottom: 14px; max-width: 560px; }
+
+    footer { border-top: 1px solid var(--line); padding: 34px 0 60px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; color: var(--faint); font-size: 13px; }
+
+    @media (max-width: 880px) {
+      .chapter .wrap { grid-template-columns: 1fr; }
+      .chapter.flip .wrap { direction: ltr; }
+      .uni-search { display: none; }
+      nav .links a:not(.btn) { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <nav>
-      <a class="brand" href="#">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4h7v7H4zM13 13h7v7h-7zM13 4l7 7M4 13l7 7"/></svg>
-        <strong>LIVRAI</strong><span>ESTÚDIO</span>
-      </a>
-      <div class="links">
-        <a href="#recursos">Recursos</a>
-        <a href="#opensource">Open source</a>
-        <a href="#apoie">Apoiar</a>
-        <a href="https://github.com/LouisLuix/livrai">GitHub</a>
-        <a class="btn primary" href="#download">Baixar</a>
-      </div>
-    </nav>
 
-    <header>
+  <nav>
+    <a class="brand" href="#">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4h7v7H4zM13 13h7v7h-7zM13 4l7 7M4 13l7 7"/></svg>
+      <strong>LIVRAI</strong><span>ESTÚDIO</span>
+    </a>
+    <div class="links">
+      <a href="#c1">Como funciona</a>
+      <a href="#apoie">Apoiar</a>
+      <a href="https://github.com/LouisLuix/livrai">GitHub</a>
+      <a class="btn primary" href="#download">Baixar</a>
+    </div>
+  </nav>
+
+  <!-- ===== HERO: o Universo de verdade, em tela cheia ===== -->
+  <header class="hero" id="hero">
+    <p class="hero-hint">Você está dentro do Universo do LIVRAI — arraste pra girar</p>
+    <div class="uni-scene" id="uni-scene"></div>
+
+    <div class="hero-overlay">
       <p class="eyebrow mono">Direção criativa, organizada</p>
-      <h1>Seu estúdio,<br><em>livre</em>.</h1>
-      <p class="lede">Quem dirige criação vive com o trabalho espalhado: referências numa pasta, roteiros em notas soltas, datas de post na cabeça. O LIVRAI junta tudo num estúdio visual — projetos em órbita, canvas infinito, cronograma, marca e IA — <strong style="color:var(--text)">rodando no seu computador</strong>.</p>
+      <h1>
+        <span class="ln"><span>Seu estúdio,</span></span>
+        <span class="ln"><span><em>livre</em>.</span></span>
+      </h1>
+      <p class="lede">Cada card girando atrás deste texto é um projeto. É assim que o LIVRAI organiza o seu trabalho — num estúdio visual que roda no seu computador.</p>
       <div class="cta">
         <a class="btn primary" id="dl-main" href="https://github.com/LouisLuix/livrai/releases/latest">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 11.5 12 16l4.5-4.5M5 19.5h14"/></svg>
           <span>Baixar o LIVRAI</span>
         </a>
-        <a class="btn" href="https://github.com/LouisLuix/livrai">Ver o código</a>
+        <a class="btn" href="#c1">Ver como funciona</a>
       </div>
-      <p class="cta-note mono">Grátis · Open source · Sem conta obrigatória · Mac e Windows</p>
-    </header>
-
-    <div class="uni-demo" id="uni-demo" aria-label="Demonstração interativa da galeria Universo">
-      <p class="uni-demo-hint">Isto é o Universo do LIVRAI — arraste pra girar, busque embaixo</p>
-      <div class="uni-demo-scene" id="uni-demo-scene"></div>
-      <div class="uni-demo-search">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg>
-        <input id="uni-demo-q" type="text" placeholder="Buscar projeto, cliente, fase…" autocomplete="off" spellcheck="false">
-      </div>
+      <p class="hero-note mono">Grátis · Open source · Sem conta obrigatória · Mac e Windows</p>
     </div>
 
-    <section id="recursos">
-      <p class="eyebrow mono">O que tem dentro</p>
-      <h2 class="sec-title">Um estúdio inteiro</h2>
-      <div class="grid3">
-        <div class="card">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4h7v7H4zM13 13h7v7h-7zM13 4l7 7M4 13l7 7"/></svg>
-          <h3>Universo 360°</h3>
-          <p>Seus projetos orbitam numa parede tridimensional. Gire, dê zoom, busque por nome, cliente ou fase — e voe direto até a entrega.</p>
+    <div class="uni-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg>
+      <input id="uni-q" type="text" placeholder="Buscar projeto, fase…" autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="scroll-cue">
+      <span class="mono" style="font-size:9px">Role pra descobrir</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 4v14M6 13l6 6 6-6"/></svg>
+    </div>
+  </header>
+
+  <!-- ===== CAPÍTULOS ===== -->
+  <section class="chapter" id="c1">
+    <div class="wrap">
+      <div>
+        <p class="ch-num" data-reveal>Capítulo 01</p>
+        <h2 class="ch-title" data-reveal style="--d:0.08s">Um canvas infinito por projeto</h2>
+        <p class="ch-copy" data-reveal style="--d:0.16s">Arraste imagens, escreva notas, monte pranchas nos formatos de entrega e espalhe referências como numa mesa de estúdio. Tudo se move, tudo se edita — do conceito ao arquivo final.</p>
+      </div>
+      <div class="mock" data-reveal style="--d:0.2s">
+        <div class="mock-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4h7v7H4zM13 13h7v7h-7zM13 4l7 7M4 13l7 7"/></svg>
+          <strong>Clipe Duporó</strong>
+          <span class="tag">Canvas</span>
         </div>
-        <div class="card">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 2.5v19M17 2.5v19M2.5 7h19M2.5 17h19"/></svg>
-          <h3>Canvas infinito</h3>
-          <p>Cada projeto é um quadro vivo: imagens, vídeos, notas, links, cores e pranchas nos formatos de entrega — 16:9, 9:16, 1:1, A4.</p>
-        </div>
-        <div class="card">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3.5" y="5.5" width="17" height="15" rx="1.6"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
-          <h3>Posts e cronograma</h3>
-          <p>Cards de post com data e status, calendário mensal por projeto e fluxo de fases: da ideia à entrega, sem planilha.</p>
-        </div>
-        <div class="card">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 4.5 13.8 10 19.5 12l-5.7 2-1.8 5.5L10.2 14 4.5 12l5.7-2z"/><path d="M19 3.5v3M17.5 5h3"/></svg>
-          <h3>IA com a sua cara</h3>
-          <p>Gere imagem, texto, vídeo e locução com suas próprias chaves (Claude, GPT, Gemini, Veo, ElevenLabs) — sempre guiadas pela identidade e pela marca de cada projeto.</p>
-        </div>
-        <div class="card">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 13.5 18.5 3l2.5 2.5L10.5 15"/><path d="M9 13.5c-2.5 0-4 1.5-4 4 0 1.5-1 2-2.5 2 1 1.5 2.5 2 4 2 2.8 0 5-1.7 5-4.5z"/></svg>
-          <h3>Photoshop conectado</h3>
-          <p>Salvar e abrir direto no Photoshop — e quando você salva lá, a imagem atualiza sozinha no canvas.</p>
-        </div>
-        <div class="card">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4.5l2 2.5H19a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18z"/></svg>
-          <h3>Seus dados são seus</h3>
-          <p>Tudo vive no seu computador. A Pasta do Estúdio salva automaticamente num arquivo seu — sem conta obrigatória, sem nuvem forçada, sem mensalidade.</p>
+        <div class="cv">
+          <div class="cv-item cv-label" style="--d:0.3s">Conceito</div>
+          <div class="cv-item cv-note" style="--d:0.45s">Estética urbana, luz quente de fim de tarde, grão de filme. Referência: anos 90.</div>
+          <div class="cv-item cv-img1" style="--d:0.6s"></div>
+          <div class="cv-item cv-img2" style="--d:0.75s"></div>
+          <div class="cv-item cv-frame" style="--d:0.9s"><i>Prancha · 9:16</i></div>
+          <div class="cv-item cv-post" style="--d:1.05s"><span class="d">22/06</span><span class="s">GRAVADO</span><p>Vídeo: bastidores da produção</p></div>
+          <div class="cv-item cv-sw a" style="--d:1.2s"></div>
+          <div class="cv-item cv-sw b" style="--d:1.3s"></div>
+          <div class="cv-item cv-sw c" style="--d:1.4s"></div>
+          <svg class="cv-cursor" width="22" height="22" viewBox="0 0 24 24" fill="#f1efe9" stroke="#0a0a0b" stroke-width="1.5"><path d="M5 3l14 8-6.5 1.5L9 19z"/></svg>
         </div>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
 
-  <section class="dl" id="download">
+  <section class="chapter flip" id="c2">
+    <div class="wrap">
+      <div>
+        <p class="ch-num" data-reveal>Capítulo 02</p>
+        <h2 class="ch-title" data-reveal style="--d:0.08s">Da ideia à entrega, sem planilha</h2>
+        <p class="ch-copy" data-reveal style="--d:0.16s">Cada projeto atravessa as fases do estúdio arrastando cards no Kanban. Um olhar e você sabe o que está parado, o que está rodando e o que já saiu.</p>
+      </div>
+      <div class="mock" data-reveal style="--d:0.2s">
+        <div class="mock-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="4" width="5.4" height="16" rx="1.2"/><rect x="11.5" y="4" width="5.4" height="11" rx="1.2"/></svg>
+          <strong>Pipeline</strong>
+          <span class="tag">Kanban</span>
+        </div>
+        <div class="kb">
+          <div class="kb-col">
+            <div class="kb-head"><span class="uni-dot" style="background:#a78bfa"></span>Ideia</div>
+            <div class="kb-card" style="--d:0.35s">Embalagem Café</div>
+            <div class="kb-card" style="--d:0.45s">Documentário</div>
+          </div>
+          <div class="kb-col">
+            <div class="kb-head"><span class="uni-dot" style="background:#fbbf24"></span>Produção</div>
+            <div class="kb-card" style="--d:0.55s">Ensaio Vinil</div>
+          </div>
+          <div class="kb-col">
+            <div class="kb-head"><span class="uni-dot" style="background:#34d399"></span>Entregue</div>
+            <div class="kb-card" style="--d:0.65s">Site Portfólio</div>
+            <div class="kb-card" style="--d:0.75s">Campanha Bebida</div>
+          </div>
+          <div class="kb-fly">Clipe Duporó<span class="mono">arrastando…</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" id="c3">
+    <div class="wrap">
+      <div>
+        <p class="ch-num" data-reveal>Capítulo 03</p>
+        <h2 class="ch-title" data-reveal style="--d:0.08s">Posts com data, status e rumo</h2>
+        <p class="ch-copy" data-reveal style="--d:0.16s">Pra quem cuida de marcas: cada post é um card com data e status — ideia, roteiro, gravado, editado, postado. O cronograma mostra o mês inteiro de cada cliente num relance.</p>
+      </div>
+      <div class="mock" data-reveal style="--d:0.2s">
+        <div class="mock-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5.5" width="17" height="15" rx="1.6"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+          <strong>Pão de Alho — Junho</strong>
+          <span class="tag">Cronograma</span>
+        </div>
+        <div class="cal">
+          <div class="cal-grid" id="cal-grid"></div>
+          <div class="cal-status">
+            <p>Vídeo: bastidores da produção</p>
+            <div class="cal-pill">
+              <span>IDEIA</span><span>ROTEIRO</span><span>GRAVADO</span><span>EDITADO</span><span>POSTADO</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter flip" id="c4">
+    <div class="wrap">
+      <div>
+        <p class="ch-num" data-reveal>Capítulo 04</p>
+        <h2 class="ch-title" data-reveal style="--d:0.08s">IA que respeita a sua estética</h2>
+        <p class="ch-copy" data-reveal style="--d:0.16s">Gere imagem, texto, vídeo e locução com suas próprias chaves — Claude, GPT, Gemini, Veo, ElevenLabs. A IA recebe a identidade do estúdio e o branding de cada projeto: o resultado nasce com a sua cara.</p>
+      </div>
+      <div class="mock" data-reveal style="--d:0.2s">
+        <div class="mock-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 4.5 13.8 10 19.5 12l-5.7 2-1.8 5.5L10.2 14 4.5 12l5.7-2z"/></svg>
+          <strong>Gerador</strong>
+          <span class="tag">IA</span>
+        </div>
+        <div class="gen">
+          <div class="gen-prompt"><i id="gen-type"></i><span class="caret"></span></div>
+          <div class="gen-row">
+            <span class="gen-chip">Imagem · 4:5</span>
+            <span class="gen-chip">Marca: Pão de Alho</span>
+            <span class="gen-go">Gerar</span>
+          </div>
+          <div class="gen-out">
+            <div class="fill"></div>
+            <div class="scan"></div>
+            <span class="gtag">Imagem gerada</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== DOWNLOAD ===== -->
+  <section class="band alt" id="download">
     <div class="wrap">
       <p class="eyebrow mono">Download</p>
-      <h2 class="sec-title">Leve pro seu computador</h2>
+      <h2 class="sec-title">Leve pro seu<br>computador</h2>
       <div class="dl-grid">
-        <a class="dl-card" href="https://github.com/LouisLuix/livrai/releases/latest">
-          <strong>Windows</strong>
-          <span>Instalador de um clique (.exe)</span>
-        </a>
-        <a class="dl-card" href="https://github.com/LouisLuix/livrai/releases/latest">
-          <strong>Mac — Apple Silicon</strong>
-          <span>M1, M2, M3, M4 (.zip)</span>
-        </a>
-        <a class="dl-card" href="https://github.com/LouisLuix/livrai/releases/latest">
-          <strong>Mac — Intel</strong>
-          <span>Macs até 2020 (.zip)</span>
-        </a>
+        <a class="dl-card" href="https://github.com/LouisLuix/livrai/releases/latest"><strong>Windows</strong><span>Instalador de um clique (.exe)</span></a>
+        <a class="dl-card" href="https://github.com/LouisLuix/livrai/releases/latest"><strong>Mac — Apple Silicon</strong><span>M1, M2, M3, M4 (.zip)</span></a>
+        <a class="dl-card" href="https://github.com/LouisLuix/livrai/releases/latest"><strong>Mac — Intel</strong><span>Macs até 2020 (.zip)</span></a>
       </div>
       <p class="dl-note">O LIVRAI ainda não tem assinatura digital paga. No Windows, se o SmartScreen avisar, clique em <em>Mais informações → Executar assim mesmo</em>. No Mac, na primeira vez, botão direito no app → <em>Abrir</em>. O app avisa sozinho quando sai versão nova.</p>
     </div>
   </section>
 
-  <section class="donate" id="apoie">
+  <!-- ===== APOIE ===== -->
+  <section class="band" id="apoie">
     <div class="wrap">
       <div class="donate-box">
         <div>
           <p class="eyebrow mono">Apoie o projeto</p>
           <h2 class="sec-title">Feito livre,<br>mantido por você</h2>
-          <p>O LIVRAI é gratuito e de código aberto — sem mensalidade, sem anúncio, sem vender seus dados. Se ele organiza o seu trabalho, considere apoiar o desenvolvimento com uma doação de qualquer valor via PIX. Cada contribuição vira tempo de desenvolvimento de novas ferramentas.</p>
+          <p>O LIVRAI é gratuito e de código aberto — sem mensalidade, sem anúncio, sem vender seus dados. Se ele organiza o seu trabalho, considere apoiar o desenvolvimento com uma doação de qualquer valor via PIX.</p>
         </div>
         <div class="pix-card">
           <p class="mono">Doação via PIX</p>
           <img class="pix-qr" src="assets/pix-qr.png" alt="QR Code PIX para doação ao LIVRAI">
-          <div class="pix-key soon" id="pix-key">Chave PIX em breve</div>
-          <button class="btn pix-copy" id="pix-copy" disabled>
+          <div class="pix-key" id="pix-key"></div>
+          <button class="btn pix-copy" id="pix-copy">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="1.6"/><path d="M5 14.5H4.5A1.5 1.5 0 0 1 3 13V4.5A1.5 1.5 0 0 1 4.5 3H13a1.5 1.5 0 0 1 1.5 1.5V5"/></svg>
             <span>Copiar chave</span>
           </button>
@@ -242,30 +441,31 @@
     </div>
   </section>
 
-  <div class="wrap">
-    <section class="open" id="opensource">
-      <div>
+  <!-- ===== OPEN SOURCE ===== -->
+  <section class="band alt" id="opensource">
+    <div class="wrap">
+      <div class="open-grid">
         <p class="eyebrow mono">Open source</p>
         <h2 class="sec-title">Livre de verdade</h2>
-        <p>O LIVRAI é código aberto sob licença MIT: use, estude, modifique e redistribua. O projeto inteiro — do canvas à galeria 3D — é JavaScript puro, sem build, legível por qualquer pessoa que queira aprender ou contribuir.</p>
+        <p>O LIVRAI é código aberto sob licença MIT: use, estude, modifique e redistribua. O projeto inteiro — do canvas à galeria 3D — é JavaScript puro, legível por qualquer pessoa que queira aprender ou contribuir.</p>
         <p>Criado e desenvolvido por <strong style="color:var(--text)">Luis Gustavo Felix</strong> <a class="mono" style="color:var(--accent)" href="https://instagram.com/luisluix" target="_blank" rel="noopener">@luisluix</a></p>
         <a class="btn" href="https://github.com/LouisLuix/livrai">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
           <span>github.com/LouisLuix/livrai</span>
         </a>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
 
   <div class="wrap">
     <footer>
-      <span>© 2026 Luis Gustavo Felix · Licença MIT</span>
+      <span>© 2026 Luis Gustavo Felix · Licença MIT · <a href="https://instagram.com/luisluix" target="_blank" rel="noopener" style="color:var(--muted)">@luisluix</a></span>
       <span class="mono">LIVRAI — ESTÚDIO</span>
     </footer>
   </div>
 
   <script>
-    // aponta o botão principal pro instalador do sistema da pessoa
+    /* botão principal por sistema */
     (function () {
       var p = navigator.platform || '';
       var note = document.querySelector('#dl-main span');
@@ -273,30 +473,25 @@
       else if (/Mac/i.test(p)) note.textContent = 'Baixar pra Mac';
     })();
 
-    /* ===== doação PIX (chave entra depois) ===== */
+    /* doação PIX */
     (function () {
       var PIX_KEY = '51b81812-2fc9-4ab0-bf19-15ed47642e12';
       var keyEl = document.getElementById('pix-key');
       var btn = document.getElementById('pix-copy');
-      if (PIX_KEY) {
-        keyEl.textContent = PIX_KEY;
-        keyEl.classList.remove('soon');
-        btn.disabled = false;
-        btn.addEventListener('click', function () {
-          navigator.clipboard.writeText(PIX_KEY).then(function () {
-            btn.querySelector('span').textContent = 'Copiada!';
-            setTimeout(function () { btn.querySelector('span').textContent = 'Copiar chave'; }, 2000);
-          });
+      keyEl.textContent = PIX_KEY;
+      btn.addEventListener('click', function () {
+        navigator.clipboard.writeText(PIX_KEY).then(function () {
+          btn.querySelector('span').textContent = 'Copiada!';
+          setTimeout(function () { btn.querySelector('span').textContent = 'Copiar chave'; }, 2000);
         });
-      }
+      });
     })();
 
-    /* ===== Universo ao vivo: a mesma galeria 3D do app, com projetos-semente ===== */
+    /* ===== Universo em tela cheia (igual ao app, mockado) ===== */
     (function () {
-      var stage = document.getElementById('uni-demo');
-      var scene = document.getElementById('uni-demo-scene');
-      var input = document.getElementById('uni-demo-q');
-      if (!stage || !scene) return;
+      var stage = document.getElementById('hero');
+      var scene = document.getElementById('uni-scene');
+      var input = document.getElementById('uni-q');
       var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       var DEMO = [
@@ -310,36 +505,35 @@
         { name: 'Documentário Bastidores', stage: 'Ideia', color: '#a78bfa', g: ['#577590', '#101012'] },
       ];
 
-      var CW = 240, CH = 175, GAP = 22, COLS = 10, ROWS = 2;
+      var CW = 270, CH = 195, GAP = 24, COLS = 10, ROWS = 3;
       var step = 360 / COLS;
       var radius = Math.round(((CW + GAP) * COLS) / (2 * Math.PI));
       stage.style.perspective = Math.round(radius * 1.15) + 'px';
 
       var cells = [];
-      var total = COLS * ROWS;
-      for (var i = 0; i < total; i++) {
+      for (var i = 0; i < COLS * ROWS; i++) {
         var p = DEMO[i % DEMO.length];
         var row = Math.floor(i / COLS), col = i % COLS;
         var angle = col * step + (row % 2 ? step / 2 : 0) + (Math.random() - 0.5) * step * 0.3;
-        var y = (row - (ROWS - 1) / 2) * (CH + GAP) + (Math.random() - 0.5) * 44;
+        var y = (row - (ROWS - 1) / 2) * (CH + GAP) + (Math.random() - 0.5) * 48;
         var r = radius * (0.92 + Math.random() * 0.18);
         var scale = 0.86 + Math.random() * 0.24;
         var spin = (Math.random() - 0.5) * 4.5;
         var el = document.createElement('div');
-        el.className = 'uni-demo-card';
+        el.className = 'uni-card';
         el.innerHTML =
-          '<div class="uni-demo-cover" style="background:linear-gradient(150deg,' + p.g[0] + ',' + p.g[1] + ' 85%)"></div>' +
-          '<div class="uni-demo-info"><div class="uni-demo-name">' + p.name + '</div>' +
-          '<div class="uni-demo-meta"><span class="uni-demo-dot" style="background:' + p.color + '"></span><span>' + p.stage + '</span></div></div>';
+          '<div class="uni-cover" style="background:linear-gradient(150deg,' + p.g[0] + ',' + p.g[1] + ' 85%)"></div>' +
+          '<div class="uni-info"><div class="uni-name">' + p.name + '</div>' +
+          '<div class="uni-meta"><span class="uni-dot" style="background:' + p.color + '"></span><span>' + p.stage + '</span></div></div>';
         scene.appendChild(el);
         cells.push({ el: el, angle: angle, y: y, r: r, scale: scale, spin: spin, p: p });
       }
 
-      var rot = 0, tilt = -4, vel = 0, dragging = false, last = performance.now(), lastTouch = 0;
+      var rot = 0, tilt = -4, vel = 0, dragging = false, lastTouch = 0;
       var born = performance.now();
 
       stage.addEventListener('pointerdown', function (e) {
-        if (e.target.closest('.uni-demo-search')) return;
+        if (e.target.closest('.uni-search, .cta, nav, a, button')) return;
         e.preventDefault();
         dragging = true;
         stage.classList.add('grabbing');
@@ -373,34 +567,91 @@
         });
       }
 
+      var heroVisible = true;
+      new IntersectionObserver(function (es) { heroVisible = es[0].isIntersecting; }).observe(stage);
+
       function tick() {
-        var now = performance.now();
-        var t = (now - born) / 1000;
-        if (!dragging) {
-          rot += vel; vel *= 0.94;
-          if (Math.abs(vel) < 0.002) vel = 0;
-          if (!reduced && !query) rot += now - lastTouch > 1600 ? 0.028 : 0.007;
-        }
-        var bobX = reduced ? 0 : Math.sin(t * 0.31) * 2.2;
-        var rollZ = reduced ? 0 : Math.sin(t * 0.21 + 1.4) * 1.1;
-        scene.style.transform = 'rotateZ(' + rollZ.toFixed(3) + 'deg) rotateX(' + (tilt + bobX).toFixed(3) + 'deg) rotateY(' + rot.toFixed(3) + 'deg)';
-        for (var i = 0; i < cells.length; i++) {
-          var c = cells[i];
-          var eff = ((((c.angle + rot + 180) % 360) + 360) % 360) - 180;
-          var a = Math.abs(eff);
-          var vis = a >= 110 ? 0 : a <= 94 ? 1 : (110 - a) / 16;
-          var hidden = vis <= 0 ? 'hidden' : '';
-          if (c.el.style.visibility !== hidden) c.el.style.visibility = hidden;
-          if (vis > 0) {
-            c.el.style.setProperty('--vis', vis.toFixed(3));
-            c.el.style.transform = 'translate(-50%, -50%) rotateY(' + c.angle + 'deg) translateZ(' + -c.r +
-              'px) translateY(' + c.y + 'px) rotateZ(' + c.spin + 'deg) scale(' + c.scale +
-              ') rotateY(' + (-eff * 0.55).toFixed(2) + 'deg)';
+        if (heroVisible) {
+          var now = performance.now();
+          var t = (now - born) / 1000;
+          if (!dragging) {
+            rot += vel; vel *= 0.94;
+            if (Math.abs(vel) < 0.002) vel = 0;
+            if (!reduced && !query) rot += now - lastTouch > 1600 ? 0.028 : 0.007;
+          }
+          var bobX = reduced ? 0 : Math.sin(t * 0.31) * 2.2;
+          var rollZ = reduced ? 0 : Math.sin(t * 0.21 + 1.4) * 1.1;
+          scene.style.transform = 'rotateZ(' + rollZ.toFixed(3) + 'deg) rotateX(' + (tilt + bobX).toFixed(3) + 'deg) rotateY(' + rot.toFixed(3) + 'deg)';
+          for (var i = 0; i < cells.length; i++) {
+            var c = cells[i];
+            var eff = ((((c.angle + rot + 180) % 360) + 360) % 360) - 180;
+            var a = Math.abs(eff);
+            var vis = a >= 110 ? 0 : a <= 94 ? 1 : (110 - a) / 16;
+            var hidden = vis <= 0 ? 'hidden' : '';
+            if (c.el.style.visibility !== hidden) c.el.style.visibility = hidden;
+            if (vis > 0) {
+              c.el.style.setProperty('--vis', vis.toFixed(3));
+              c.el.style.transform = 'translate(-50%, -50%) rotateY(' + c.angle + 'deg) translateZ(' + -c.r +
+                'px) translateY(' + c.y + 'px) rotateZ(' + c.spin + 'deg) scale(' + c.scale +
+                ') rotateY(' + (-eff * 0.55).toFixed(2) + 'deg)';
+            }
           }
         }
         requestAnimationFrame(tick);
       }
       tick();
+    })();
+
+    /* ===== capítulos: reveal no scroll ===== */
+    (function () {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) e.target.classList.add('in');
+        });
+      }, { threshold: 0.3 });
+      document.querySelectorAll('.chapter').forEach(function (s) { io.observe(s); });
+    })();
+
+    /* calendário do capítulo 3 */
+    (function () {
+      var grid = document.getElementById('cal-grid');
+      var chips = { 2: 'Receita na brasa', 5: 'Bastidores', 9: 'Promo quinta', 12: 'Reels cliente', 16: 'Carrossel', 19: 'Story enquete' };
+      var d = 0;
+      for (var i = 0; i < 21; i++) {
+        var day = document.createElement('div');
+        day.className = 'cal-day' + (i === 9 ? ' today' : '');
+        day.textContent = i + 1;
+        if (chips[i]) {
+          var c = document.createElement('span');
+          c.className = 'cal-chip';
+          c.style.setProperty('--d', (0.3 + d * 0.18) + 's');
+          c.textContent = chips[i];
+          day.appendChild(c);
+          d++;
+        }
+        grid.appendChild(day);
+      }
+    })();
+
+    /* prompt digitando no capítulo 4 */
+    (function () {
+      var el = document.getElementById('gen-type');
+      var TXT = 'foto do pão de alho na brasa, vapor subindo, luz quente de fim de tarde, grão de filme';
+      var sec = document.getElementById('c4');
+      var started = false;
+      new IntersectionObserver(function (es) {
+        if (es[0].isIntersecting && !started) {
+          started = true;
+          var i = 0;
+          (function type() {
+            if (i <= TXT.length) {
+              el.textContent = TXT.slice(0, i);
+              i++;
+              setTimeout(type, 34);
+            }
+          })();
+        }
+      }, { threshold: 0.4 }).observe(sec);
     })();
   </script>
 </body>
