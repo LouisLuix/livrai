@@ -562,6 +562,96 @@
     render();
   }
 
+  /* ---------- arrastar pasta do computador = novo projeto vinculado ----------
+     Nada é copiado: o projeto usa o CAMINHO real da pasta. Os arquivos ficam
+     organizados no explorador embutido — só vira card o que o usuário puxar. */
+
+  galleryView.addEventListener('dragover', (e) => e.preventDefault());
+  galleryView.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    // snapshot síncrono — o dataTransfer só vale durante o evento
+    const dirs = [...e.dataTransfer.items]
+      .map((it) => ({
+        dir: !!(it.webkitGetAsEntry && it.webkitGetAsEntry() && it.webkitGetAsEntry().isDirectory),
+        file: it.getAsFile ? it.getAsFile() : null,
+      }))
+      .filter((d) => d.dir && d.file);
+    if (!dirs.length) return;
+    for (const d of dirs) await projectFromFolder(d.file);
+  });
+
+  async function projectFromFolder(file) {
+    const abs = E.files.pathForFile(file);
+    if (!abs) {
+      E.ui.toast('Criar projeto arrastando pasta precisa do app Livrai (desktop)');
+      return;
+    }
+    const linked = await E.files.linkPath(abs);
+    if (!linked) {
+      E.ui.toast('⚠️ Não consegui vincular a pasta');
+      return;
+    }
+
+    // a mesma pasta não vira dois projetos — abre o que já existe
+    const all = await E.db.getAll('projects');
+    const dup = all.find((p) => p.linkedFolder === linked.path);
+    if (dup) {
+      E.ui.toast('"' + dup.name + '" já usa essa pasta — abrindo');
+      E.app.openProject(dup.id);
+      return;
+    }
+
+    const now = Date.now();
+    const boardId = 'b-' + E.uid().slice(0, 8);
+    const p = {
+      id: E.uid(),
+      name: linked.name,
+      type: 'outro',
+      clientId: null,
+      stage: 'ideia',
+      createdAt: now,
+      updatedAt: now,
+      linkedFolder: linked.path,
+      boards: [{ id: boardId, name: 'Principal' }],
+    };
+    await E.db.put('projects', p);
+
+    // o canvas do projeto já nasce com o card da pasta, pronto pra explorar
+    await E.db.put('items', {
+      id: E.uid(), projectId: p.id, board: boardId, z: 1,
+      kind: 'folder', x: -110, y: -66, w: 220, h: 132,
+      content: { path: linked.path, name: linked.name },
+    });
+
+    // capa automática: primeira imagem encontrada (na pasta ou 1 nível abaixo)
+    try {
+      const cover = await findCoverImage(linked.path, 0);
+      if (cover) {
+        const blob = await E.files.readPath(cover);
+        p.coverBlobId = await E.db.saveBlob(blob);
+        await E.db.put('projects', p);
+      }
+    } catch (_) {}
+
+    E.ui.toast('Projeto "' + linked.name + '" criado da pasta — nada foi copiado');
+    render();
+  }
+
+  const COVER_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+  async function findCoverImage(dir, depth) {
+    if (depth > 1) return null;
+    const data = await E.files.browse(dir);
+    const img = data.entries.find((en) => !en.dir && COVER_EXTS.indexOf(en.ext) >= 0);
+    if (img) return img.path;
+    for (const en of data.entries) {
+      if (en.dir) {
+        const found = await findCoverImage(en.path, depth + 1);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
   document.getElementById('btn-settings').addEventListener('click', () => E.settings.open());
 
   E.gallery = { render, assignClient, renameProject, deleteProject };

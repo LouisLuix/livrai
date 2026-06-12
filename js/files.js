@@ -285,6 +285,32 @@
     return null;
   };
 
+  /* Caminho real de um arquivo/pasta arrastado (só existe no app desktop) */
+  E.files.pathForFile = function (file) {
+    try {
+      return window.livraiNative && window.livraiNative.pathForFile
+        ? window.livraiNative.pathForFile(file)
+        : '';
+    } catch (_) {
+      return '';
+    }
+  };
+
+  /* Autoriza uma pasta arrastada (gesto explícito do usuário) — sem diálogo */
+  E.files.linkPath = async function (absPath) {
+    try {
+      const r = await fetch('/__studio/link-path', {
+        method: 'POST',
+        headers: HD,
+        body: JSON.stringify({ path: absPath }),
+      });
+      if (!r.ok) return null;
+      return await r.json(); // { path, name }
+    } catch (_) {
+      return null;
+    }
+  };
+
   /* Lista o conteúdo de uma pasta autorizada — { path, entries: [...] } */
   E.files.browse = async function (absPath) {
     const r = await fetch('/__studio/browse?path=' + encodeURIComponent(absPath), { headers: HD });

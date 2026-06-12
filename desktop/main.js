@@ -238,6 +238,24 @@ function handleStudio(req, res, u) {
     return;
   }
 
+  // vincula uma pasta ARRASTADA pro app (o caminho vem do preload — gesto
+  // explícito do usuário, equivalente ao diálogo nativo)
+  if (u.pathname === '/__studio/link-path' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      let payload = {};
+      try { payload = JSON.parse(body || '{}'); } catch (_) {}
+      const p = path.resolve(String(payload.path || ''));
+      let ok = false;
+      try { ok = p.length > 1 && fs.statSync(p).isDirectory(); } catch (_) {}
+      if (!ok) return json(400, { error: 'pasta inválida' });
+      addLinkedRoot(p);
+      json(200, { path: p, name: path.basename(p) });
+    });
+    return;
+  }
+
   // vincula uma pasta do computador (escolhida em diálogo nativo) ao Estúdio
   if (u.pathname === '/__studio/link-folder' && req.method === 'POST') {
     dialog
@@ -538,6 +556,10 @@ function createWindow() {
     height: 950,
     title: 'Livrai',
     backgroundColor: '#0d0d10',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+    },
   });
   mainWin = win;
   win.on('closed', () => { if (mainWin === win) mainWin = null; });

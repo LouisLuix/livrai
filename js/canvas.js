@@ -479,6 +479,36 @@
     return createFileFromBlob(f, x, y);
   }
 
+  /* Pasta arrastada pro canvas: vira card vinculado pelo CAMINHO real —
+     nada é copiado, e a mesma pasta não entra duas vezes no projeto */
+  async function createFolderFromDrop(file, x, y) {
+    const abs = E.files.pathForFile(file);
+    if (!abs) {
+      E.ui.toast('Vincular pasta arrastando precisa do app Livrai (desktop)');
+      return null;
+    }
+    const existing = allList.find(
+      (it) => it.kind === 'folder' && it.content && it.content.path === abs
+    );
+    if (existing) {
+      E.ui.toast('Essa pasta já está vinculada a este projeto');
+      focusItem(existing.id);
+      return existing;
+    }
+    const r = await E.files.linkPath(abs);
+    if (!r) {
+      E.ui.toast('⚠️ Não consegui vincular a pasta');
+      return null;
+    }
+    const folder = addItem({
+      kind: 'folder', x: x - 110, y: y - 66, w: 220, h: 132,
+      content: { path: r.path, name: r.name },
+    });
+    selectOnly(folder.id);
+    E.ui.toast('Pasta vinculada — nada foi copiado, o card usa o caminho real');
+    return folder;
+  }
+
   /* Importação vinda do explorador de pastas vinculadas */
   async function importFile(blob, name) {
     const c = viewCenterWorld();
@@ -1326,14 +1356,23 @@
     e.preventDefault();
     if (!isOpen()) return;
     const p = screenToWorld(e.clientX, e.clientY);
-    const files = [...e.dataTransfer.files];
-    if (files.length) {
-      for (let i = 0; i < files.length; i++) {
-        await createAnyFromBlob(files[i], p.x + i * 44, p.y + i * 44);
+    // snapshot SÍNCRONO — o dataTransfer só vale durante o evento
+    const drops = [...e.dataTransfer.items]
+      .map((it) => ({
+        dir: !!(it.webkitGetAsEntry && it.webkitGetAsEntry() && it.webkitGetAsEntry().isDirectory),
+        file: it.getAsFile ? it.getAsFile() : null,
+      }))
+      .filter((d) => d.file);
+    const uri = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+
+    if (drops.length) {
+      for (let i = 0; i < drops.length; i++) {
+        const d = drops[i];
+        if (d.dir) await createFolderFromDrop(d.file, p.x + i * 44, p.y + i * 44);
+        else await createAnyFromBlob(d.file, p.x + i * 44, p.y + i * 44);
       }
       return;
     }
-    const uri = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
     if (uri && /^https?:/i.test(uri.trim())) {
       createLink(uri.trim().split('\n')[0], '', p.x, p.y);
     }
