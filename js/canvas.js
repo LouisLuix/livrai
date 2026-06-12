@@ -975,6 +975,14 @@
       );
     }
     if (it && it.kind === 'image') {
+      const nv = ((it.content && it.content.versions) || []).length;
+      if (nv) {
+        entries.push({
+          label: 'Versões da imagem (' + nv + ')',
+          icon: 'layers',
+          onClick: () => E.files.openVersions(it),
+        });
+      }
       entries.push({
         label: 'Usar como capa do projeto',
         icon: 'image',
@@ -1170,6 +1178,14 @@
       items.delete(it.id);
       selection.delete(it.id);
       E.db.del('items', it.id);
+      // lixeira: a exclusão sobrevive ao fechamento (30 dias)
+      E.db.put('trash', {
+        id: it.id,
+        item: Object.assign({}, it, { content: structuredClone(it.content) }),
+        projectId: project.id,
+        projectName: project.name || 'Projeto',
+        deletedAt: Date.now(),
+      });
     });
     allList = allList.filter((it) => !goneIds.has(it.id));
     touchProject();
@@ -1196,6 +1212,7 @@
       allList.push(it);
       mount(it);
       E.db.put('items', it);
+      E.db.del('trash', it.id); // voltou — sai da lixeira
     });
     clearSelection();
     batch.forEach((it) => setSelected(it.id, true));

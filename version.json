@@ -1,6 +1,6 @@
 {
-  "version": "1.5.0",
+  "version": "1.6.0",
   "date": "2026-06-12",
-  "notes": "Pasta do Estúdio predefinida (sem perguntas de onde salvar) · imagens se fundem no post · setas de fluxo em qualquer card · notas com título, formatação e checklist + vínculo com as Notas do projeto · publicação assistida no Instagram · projeto vira hub de arquivos: PDF/Office no canvas, pastas do computador vinculadas e explorador embutido.",
+  "notes": "Conta LIVRAI completa: compartilhe decks por link público (com senha opcional — o conteúdo sobe cifrado), ligue a sincronização dos projetos na nuvem e acompanhe as Novidades dentro do app. De brinde: busca no projeto (Cmd+F), agenda geral de posts de todos os clientes, versões das artes salvas do Photoshop, lixeira de 30 dias, chaves de IA no cofre do sistema, pasta do Estúdio automática e hub de arquivos com explorador embutido.",
   "url": "https://github.com/LouisLuix/livrai/releases/latest"
 }

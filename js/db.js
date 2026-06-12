@@ -2,7 +2,7 @@
 (function () {
   const E = window.Estudio;
   const DB_NAME = 'estudio-entregas';
-  const DB_VERSION = 3;
+  const DB_VERSION = 4;
   let dbPromise = null;
 
   function openDb() {
@@ -28,6 +28,10 @@
         // Clientes — cadastro simples pra vincular e filtrar projetos
         if (!db.objectStoreNames.contains('clients')) {
           db.createObjectStore('clients', { keyPath: 'id' });
+        }
+        // Lixeira — exclusões sobrevivem à sessão (purga após 30 dias)
+        if (!db.objectStoreNames.contains('trash')) {
+          db.createObjectStore('trash', { keyPath: 'id' });
         }
       };
       req.onsuccess = () => resolve(req.result);

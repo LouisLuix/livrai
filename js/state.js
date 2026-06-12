@@ -2,7 +2,7 @@
 (function () {
   const E = (window.Estudio = window.Estudio || {});
 
-  E.APP_VERSION = '1.5.0';
+  E.APP_VERSION = '1.6.0';
   E.REPO_URL = 'https://github.com/LouisLuix/livrai';
 
   E.uid = function () {

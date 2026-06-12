@@ -9,6 +9,7 @@
     { id: 'ai', label: 'IA & Identidade', icon: 'sparkles' },
     { id: 'backup', label: 'Backup', icon: 'database' },
     { id: 'integrations', label: 'Integrações', icon: 'brush' },
+    { id: 'news', label: 'Novidades', icon: 'star' },
     { id: 'updates', label: 'Atualizações', icon: 'refresh' },
     { id: 'about', label: 'Licença', icon: 'logo' },
   ];
@@ -330,6 +331,80 @@
     });
     restore.appendChild(restoreBtn);
     content.appendChild(restore);
+
+    // Lixeira: tudo que foi excluído nos últimos 30 dias volta com um clique
+    const trashBlock = document.createElement('div');
+    trashBlock.className = 'settings-block';
+    trashBlock.innerHTML =
+      '<h4>' + E.icon('trash', 16) + '<span>Lixeira</span></h4>' +
+      '<p>Itens excluídos ficam aqui por 30 dias — depois somem de vez.</p>';
+    const trashList = document.createElement('div');
+    trashList.className = 'trash-list';
+    trashBlock.appendChild(trashList);
+    content.appendChild(trashBlock);
+
+    const KIND_LABEL = {
+      note: 'Nota', label: 'Título', image: 'Imagem', video: 'Vídeo', audio: 'Áudio',
+      link: 'Link', color: 'Cor', post: 'Post', frame: 'Prancha', flownode: 'Fluxo',
+      gen: 'Gerador', file: 'Arquivo', folder: 'Pasta',
+    };
+
+    function trashSummary(t) {
+      const it = t.item || {};
+      const c = it.content || {};
+      const text = (c.text || c.name || c.title || c.url || c.hex || '').replace(/\n/g, ' ').slice(0, 46);
+      return (KIND_LABEL[it.kind] || 'Item') + (text ? ' · ' + text : '');
+    }
+
+    async function renderTrash() {
+      const all = (await E.db.getAll('trash')).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+      trashList.innerHTML = '';
+      if (!all.length) {
+        trashList.innerHTML = '<p class="settings-desc">Vazia — nada excluído nos últimos 30 dias.</p>';
+        return;
+      }
+      all.slice(0, 60).forEach((t) => {
+        const row = document.createElement('div');
+        row.className = 'share-row';
+        const info = document.createElement('div');
+        info.className = 'share-row-info';
+        info.innerHTML =
+          '<strong>' + E.escapeHtml(trashSummary(t)) + '</strong>' +
+          '<span class="mono">' + E.escapeHtml(t.projectName || '') + ' · ' +
+          new Date(t.deletedAt || 0).toLocaleDateString('pt-BR') + '</span>';
+        const back = document.createElement('button');
+        back.className = 'btn ghost icon-only';
+        back.innerHTML = E.icon('refresh', 15);
+        back.title = 'Restaurar no projeto';
+        back.addEventListener('click', async () => {
+          const proj = await E.db.get('projects', t.projectId);
+          if (!proj) {
+            E.ui.toast('⚠️ O projeto deste item foi excluído — não dá pra restaurar');
+            return;
+          }
+          const item = t.item;
+          const boards = (proj.boards || []).map((b) => b.id);
+          if (boards.length && boards.indexOf(item.board) < 0) item.board = boards[0];
+          await E.db.put('items', item);
+          await E.db.del('trash', t.id);
+          E.ui.toast('Restaurado em "' + (proj.name || 'Projeto') + '" — abra o projeto pra ver');
+          renderTrash();
+        });
+        const gone = document.createElement('button');
+        gone.className = 'btn ghost icon-only danger';
+        gone.innerHTML = E.icon('close', 15);
+        gone.title = 'Apagar de vez';
+        gone.addEventListener('click', async () => {
+          await E.db.del('trash', t.id);
+          renderTrash();
+        });
+        row.appendChild(info);
+        row.appendChild(back);
+        row.appendChild(gone);
+        trashList.appendChild(row);
+      });
+    }
+    renderTrash();
   }
 
   function sectionIntegrations(content) {
@@ -546,6 +621,7 @@
     ai: sectionAi,
     backup: sectionBackup,
     integrations: sectionIntegrations,
+    news: (content) => E.news.renderSection(content),
     updates: sectionUpdates,
     about: sectionAbout,
   };

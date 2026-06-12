@@ -72,21 +72,28 @@
     await mk('color', 280, 450, 120, 120, { hex: '#34d399' });
   }
 
-  /* Limpeza: apaga imagens que não pertencem mais a nenhum item ou capa */
+  /* Limpeza: apaga imagens que não pertencem mais a nenhum item, capa,
+     versão guardada ou exclusão na lixeira */
   async function gcBlobs() {
-    const [blobs, items, projects] = await Promise.all([
+    const [blobs, items, projects, trash] = await Promise.all([
       E.db.getAll('blobs'),
       E.db.getAll('items'),
       E.db.getAll('projects'),
+      E.db.getAll('trash'),
     ]);
     const used = new Set();
-    items.forEach((it) => {
+    const markItem = (it) => {
       if (it.content && it.content.blobId) used.add(it.content.blobId);
       if (it.content && it.content.sceneBlobId) used.add(it.content.sceneBlobId);
       if (it.content && Array.isArray(it.content.media)) {
         it.content.media.forEach((m) => m.blobId && used.add(m.blobId));
       }
-    });
+      if (it.content && Array.isArray(it.content.versions)) {
+        it.content.versions.forEach((v) => v.blobId && used.add(v.blobId));
+      }
+    };
+    items.forEach(markItem);
+    trash.forEach((t) => t.item && markItem(t.item));
     projects.forEach((p) => {
       if (p.coverBlobId) used.add(p.coverBlobId);
       const b = p.brand;
@@ -99,6 +106,15 @@
     });
     for (const b of blobs) {
       if (!used.has(b.id)) await E.db.del('blobs', b.id);
+    }
+  }
+
+  /* Lixeira: o que passou de 30 dias vai embora de vez */
+  async function purgeTrash() {
+    const limit = Date.now() - 30 * 86400e3;
+    const trash = await E.db.getAll('trash');
+    for (const t of trash) {
+      if ((t.deletedAt || 0) < limit) await E.db.del('trash', t.id);
     }
   }
 
@@ -130,6 +146,7 @@
 
   async function boot() {
     try {
+      if (E.ai && E.ai.initSecrets) await E.ai.initSecrets();
       let projects = await E.db.getAll('projects');
       if (!projects.length) {
         await consumeDesktopMigration();
@@ -143,8 +160,10 @@
         setTimeout(() => E.sync.firstRunPrompt(), 1600);
       }
       if (E.updates) setTimeout(() => E.updates.check(), 4000);
+      if (E.news) setTimeout(() => E.news.check(), 5000);
       if (E.account) E.account.init();
-      gcBlobs().catch(() => {});
+      if (E.cloudsync) E.cloudsync.init();
+      purgeTrash().then(() => gcBlobs()).catch(() => {});
     } catch (err) {
       console.error(err);
       const sp = document.getElementById('splash');

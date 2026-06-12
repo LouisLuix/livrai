@@ -1,0 +1,21 @@
+{
+  "community": {
+    "discord": "",
+    "whatsapp": "",
+    "instagram": "https://instagram.com/luisluix"
+  },
+  "posts": [
+    {
+      "id": "2026-06-12-v160",
+      "date": "2026-06-12",
+      "title": "v1.6.0 — Conta LIVRAI completa",
+      "body": "As três promessas da conta saíram do papel: compartilhe qualquer aba do canvas por link público (com senha opcional — o conteúdo sobe cifrado), ligue a sincronização na nuvem e seus projetos aparecem em qualquer computador, e esta seção de Novidades te conta tudo em primeira mão. De brinde: busca dentro do projeto (Cmd+F), agenda geral com posts de todos os clientes, histórico de versões das artes editadas no Photoshop e lixeira de verdade."
+    },
+    {
+      "id": "2026-06-12-v150",
+      "date": "2026-06-12",
+      "title": "v1.5.0 — pasta do Estúdio e hub de arquivos",
+      "body": "O app passou a cuidar da pasta sozinho (nada de 'onde salvar?'), imagens se fundem em posts, setas de fluxo conectam qualquer card, notas ganharam título/formatação/checklist, PDFs e arquivos de Office viram cards, pastas do computador são vinculadas ao projeto com explorador embutido e preview de fotos por setas."
+    }
+  ]
+}

@@ -206,14 +206,106 @@
   function applyUpdatedBlob(it, blob, mtime, fname) {
     const oldBlobId = it.content.blobId;
     return E.db.saveBlob(blob).then((id) => {
+      // histórico: a arte anterior vira uma versão (guardamos até 5)
+      if (oldBlobId) {
+        const vs = Array.isArray(it.content.versions) ? it.content.versions : [];
+        vs.unshift({ blobId: oldBlobId, at: Date.now() });
+        while (vs.length > 5) {
+          const drop = vs.pop();
+          if (drop && drop.blobId) E.db.del('blobs', drop.blobId);
+        }
+        it.content.versions = vs;
+        E.db.releaseBlobUrl(oldBlobId);
+      }
       it.content.blobId = id;
       it.content.fileRef.mtime = mtime;
-      if (oldBlobId) E.db.releaseBlobUrl(oldBlobId);
       E.db.put('items', it);
       E.canvas.refreshItem(it);
-      E.ui.toast('"' + fname + '" atualizado do Photoshop');
+      E.ui.toast('"' + fname + '" atualizado do Photoshop — a versão anterior ficou guardada');
     });
   }
+
+  /* ---------- versões da imagem (histórico do Cmd+S) ---------- */
+
+  async function restoreVersionToDisk(item) {
+    // mantém o arquivo do disco igual ao que voltou a valer no canvas
+    try {
+      await desktopReady;
+      const ref = item.content.fileRef;
+      if (!desktop || !ref) return;
+      const rec = await E.db.get('blobs', item.content.blobId);
+      if (!rec || !rec.blob) return;
+      const parts = ref.path.split('/');
+      const saved = await desktopSave(parts[0], parts.slice(1).join('/'), rec.blob);
+      item.content.fileRef.mtime = saved.mtime;
+    } catch (_) {}
+  }
+
+  E.files.openVersions = async function (item) {
+    const vs = (item.content && item.content.versions) || [];
+    if (!vs.length) {
+      E.ui.toast('Essa imagem ainda não tem versões anteriores (elas nascem quando o Photoshop salva por cima)');
+      return;
+    }
+    const root = document.getElementById('modal-root');
+    root.innerHTML = '';
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    const box = document.createElement('div');
+    box.className = 'modal versions-modal';
+    box.innerHTML = '<h3>Versões da imagem</h3><p class="modal-msg">A versão atual fica guardada quando você restaura uma antiga — nada se perde.</p>';
+    const grid = document.createElement('div');
+    grid.className = 'versions-grid';
+    box.appendChild(grid);
+    overlay.appendChild(box);
+    root.appendChild(overlay);
+    overlay.addEventListener('pointerdown', (e) => {
+      if (e.target === overlay) root.innerHTML = '';
+    });
+
+    const mkCell = async (blobId, label, isCurrent, idx) => {
+      const cell = document.createElement('div');
+      cell.className = 'versions-cell' + (isCurrent ? ' current' : '');
+      const img = document.createElement('img');
+      img.alt = '';
+      E.db.blobUrl(blobId).then((u) => {
+        if (u) img.src = u;
+      });
+      const cap = document.createElement('span');
+      cap.className = 'mono';
+      cap.textContent = label;
+      cell.appendChild(img);
+      cell.appendChild(cap);
+      if (!isCurrent) {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        E.setLabel(btn, 'refresh', 'Restaurar');
+        btn.addEventListener('click', async () => {
+          const cur = item.content.blobId;
+          const v = item.content.versions.splice(idx, 1)[0];
+          item.content.versions.unshift({ blobId: cur, at: Date.now() });
+          item.content.blobId = v.blobId;
+          E.db.releaseBlobUrl(cur);
+          await restoreVersionToDisk(item);
+          E.canvas.refreshItem(item);
+          root.innerHTML = '';
+          E.ui.toast('Versão restaurada — a anterior continua no histórico');
+        });
+        cell.appendChild(btn);
+      }
+      grid.appendChild(cell);
+    };
+
+    await mkCell(item.content.blobId, 'atual', true, -1);
+    for (let i = 0; i < vs.length; i++) {
+      await mkCell(
+        vs[i].blobId,
+        new Date(vs[i].at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+        false,
+        i
+      );
+    }
+  };
 
   let watching = false;
   setInterval(async () => {

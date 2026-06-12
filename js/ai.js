@@ -34,11 +34,60 @@
   ];
   const SEEDREAM_MODEL = 'fal-ai/bytedance/seedream/v4/text-to-image';
 
-  function settings() {
-    let s = {};
+  /* Cofre de chaves: no app desktop as chaves moram cifradas pelo sistema
+     (safeStorage/Keychain) — o localStorage é só o fallback do navegador. */
+  let mem = null; // cache em memória da sessão
+  let vault = false; // true quando o cofre do desktop está disponível
+
+  async function persistSecrets() {
+    if (vault) {
+      await fetch('/__studio/secrets', {
+        method: 'POST',
+        headers: { 'X-Livrai': '1' },
+        body: JSON.stringify({ data: JSON.stringify(mem || {}) }),
+      });
+    } else {
+      localStorage.setItem(SKEY, JSON.stringify(mem || {}));
+    }
+  }
+
+  E.ai.initSecrets = async function () {
     try {
-      s = JSON.parse(localStorage.getItem(SKEY)) || {};
-    } catch (_) {}
+      const r = await fetch('/__studio/secrets', { headers: { 'X-Livrai': '1' } });
+      if (r.status === 404) vault = true;
+      else if (r.ok) {
+        vault = true;
+        const d = await r.json();
+        mem = JSON.parse(d.data || '{}');
+      }
+    } catch (_) {
+      /* navegador — segue no localStorage */
+    }
+    if (mem === null) {
+      try {
+        mem = JSON.parse(localStorage.getItem(SKEY)) || {};
+      } catch (_) {
+        mem = {};
+      }
+    }
+    // migração única: chaves que estavam no localStorage entram no cofre
+    if (vault && localStorage.getItem(SKEY)) {
+      try {
+        await persistSecrets();
+        localStorage.removeItem(SKEY);
+      } catch (_) {}
+    }
+  };
+
+  function settings() {
+    let s = mem;
+    if (s === null) {
+      try {
+        s = JSON.parse(localStorage.getItem(SKEY)) || {};
+      } catch (_) {
+        s = {};
+      }
+    }
     return {
       identity: s.identity || DEFAULTS.identity,
       keys: Object.assign({}, DEFAULTS.keys, s.keys || {}),
@@ -46,7 +95,10 @@
     };
   }
   function saveSettings(s) {
-    localStorage.setItem(SKEY, JSON.stringify(s));
+    mem = s;
+    persistSecrets().catch(() => {
+      localStorage.setItem(SKEY, JSON.stringify(s));
+    });
   }
   E.ai.settings = settings;
 

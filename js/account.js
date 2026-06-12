@@ -262,6 +262,8 @@
     card.appendChild(out);
     content.appendChild(card);
 
+    if (E.cloudsync && E.cloudsync.renderBlock) E.cloudsync.renderBlock(content);
+    if (E.share && E.share.renderLinksBlock) E.share.renderLinksBlock(content);
     content.appendChild(perksBlock());
   }
 
@@ -271,9 +273,9 @@
     perks.innerHTML =
       '<h4>' + E.icon('star', 16) + '<span>O que a conta libera</span></h4>' +
       '<ul class="account-perks">' +
-      '<li>' + E.icon('refresh', 14) + '<span>Sincronização dos projetos na nuvem <em>em breve</em></span></li>' +
-      '<li>' + E.icon('arrow-up-right', 14) + '<span>Compartilhar pranchas por link <em>em breve</em></span></li>' +
-      '<li>' + E.icon('users', 14) + '<span>Comunidade e novidades em primeira mão <em>em breve</em></span></li>' +
+      '<li>' + E.icon('refresh', 14) + '<span>Sincronização dos projetos na nuvem — ligue aqui em cima</span></li>' +
+      '<li>' + E.icon('arrow-up-right', 14) + '<span>Compartilhar decks por link — botão Compartilhar, no canvas</span></li>' +
+      '<li>' + E.icon('users', 14) + '<span>Comunidade e novidades em primeira mão — Configurações → Novidades</span></li>' +
       '</ul>';
     return perks;
   }
@@ -368,5 +370,5 @@
     listeners.push(fn);
   }
 
-  E.account = { init, renderSection, openPanel, closePanel, onChange, current: () => user };
+  E.account = { init, renderSection, openPanel, closePanel, onChange, current: () => user, loadFirebase };
 })();

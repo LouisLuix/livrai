@@ -3,7 +3,7 @@
    MODO DE ATUALIZAÇÃO AO VIVO: se a pasta de desenvolvimento existir,
    o app carrega as ferramentas direto dela — novas ferramentas chegam
    com ⌘R, sem reinstalar. Senão, usa a cópia embutida. */
-const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -235,6 +235,40 @@ function handleStudio(req, res, u) {
     }
     res.writeHead(200, { 'Content-Type': STUDIO_MIME[path.extname(file).toLowerCase()] || 'application/octet-stream' });
     fs.createReadStream(file).pipe(res);
+    return;
+  }
+
+  // cofre de chaves: as chaves de IA ficam cifradas pelo sistema
+  // (Keychain/DPAPI via safeStorage) num arquivo do app — fora do localStorage
+  if (u.pathname === '/__studio/secrets' && req.method === 'GET') {
+    const file = path.join(app.getPath('userData'), 'livrai-secrets.bin');
+    try {
+      if (!fs.existsSync(file)) return json(404, {});
+      const buf = fs.readFileSync(file);
+      const txt = safeStorage.isEncryptionAvailable()
+        ? safeStorage.decryptString(buf)
+        : buf.toString('utf8');
+      return json(200, { data: txt });
+    } catch (e) {
+      return json(500, { error: String(e) });
+    }
+  }
+  if (u.pathname === '/__studio/secrets' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const txt = String(payload.data || '{}');
+        const buf = safeStorage.isEncryptionAvailable()
+          ? safeStorage.encryptString(txt)
+          : Buffer.from(txt, 'utf8');
+        fs.writeFileSync(path.join(app.getPath('userData'), 'livrai-secrets.bin'), buf);
+        json(200, { ok: true });
+      } catch (e) {
+        json(500, { error: String(e) });
+      }
+    });
     return;
   }
 
