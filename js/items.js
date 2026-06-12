@@ -56,6 +56,23 @@
       t.className = 'label-text';
       t.textContent = c.text || 'Título';
       body.appendChild(t);
+    } else if (item.kind === 'flownode') {
+      const shape = c.shape || 'step';
+      body.classList.add('flow-body', 'flow-shape-' + shape);
+      el.style.setProperty('--flow-c', c.color || '#ff5c26');
+      const t = document.createElement('span');
+      t.className = 'flow-text';
+      t.textContent = c.text || '';
+      body.appendChild(t);
+      // pontinhos de conexão nas 4 bordas (ficam no el pra escapar do clip do losango)
+      ['t', 'r', 'b', 'l'].forEach((side) => {
+        if (el.querySelector('.flow-port[data-side="' + side + '"]')) return;
+        const port = document.createElement('div');
+        port.className = 'flow-port';
+        port.dataset.side = side;
+        port.title = 'Arraste até outro item pra criar a seta';
+        el.appendChild(port);
+      });
     } else if (item.kind === 'image') {
       const img = document.createElement('img');
       img.draggable = false;
@@ -553,7 +570,7 @@
 
   /** Edição conforme o tipo do item (acionada por duplo clique) */
   E.items.beginEdit = function (item, el, onChange) {
-    if (item.kind === 'note' || item.kind === 'label' || item.kind === 'post' || item.kind === 'frame') {
+    if (item.kind === 'note' || item.kind === 'label' || item.kind === 'post' || item.kind === 'frame' || item.kind === 'flownode') {
       textEdit(item, el, onChange);
     } else if (item.kind === 'color') {
       const input = el.querySelector('input[type=color]');

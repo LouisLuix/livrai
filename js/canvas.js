@@ -25,6 +25,7 @@
   let drag = null;
   let spaceDown = false; // segurar Espaço = mover o canvas
   let pendingCreate = null; // ferramenta escolhida esperando o clique de posicionamento
+  let pendingConnectFrom = null; // item de origem esperando o clique no destino da seta
   let pendingImagePoint = null; // onde colocar as imagens escolhidas no seletor de arquivos
   let deletedStack = []; // pilha pra desfazer exclusões (Cmd+Z)
 
@@ -86,6 +87,7 @@
     items = new Map();
     deletedStack = [];
     maxZ = 1;
+    E.flow.mountLayer(world);
     allList.forEach((it) => {
       if (it.board === boardId) {
         items.set(it.id, it);
@@ -93,6 +95,7 @@
         mount(it);
       }
     });
+    E.flow.refresh();
     const cam = project.cameras && project.cameras[boardId];
     const camOk =
       cam &&
@@ -364,6 +367,19 @@
       content: { text: '', date: '', status: 'ideia' },
     });
   }
+  function createFlowNode(x, y, shape, text, color) {
+    return addItem({
+      kind: 'flownode', x, y,
+      w: shape === 'decision' ? 210 : 220,
+      h: shape === 'decision' ? 130 : 88,
+      content: {
+        text: text || '',
+        shape: shape || 'step',
+        color: color || E.flow.PALETTE[0],
+        next: [],
+      },
+    });
+  }
 
   /* Pranchas ficam sempre atrás dos outros itens */
   function nextFrameZ() {
@@ -474,11 +490,33 @@
       fn(screenToWorld(e.clientX, e.clientY));
       return;
     }
+    // Modo "Conectar com seta": o próximo clique em um item fecha a conexão
+    if (pendingConnectFrom && e.button === 0) {
+      e.preventDefault();
+      const fromId = pendingConnectFrom;
+      cancelConnectClick();
+      const target = e.target.closest && e.target.closest('.item');
+      if (target && target.dataset.id !== fromId) {
+        E.flow.connect(fromId, target.dataset.id);
+      } else {
+        E.ui.toast('Conexão cancelada');
+      }
+      return;
+    }
     if (isFormTarget(e.target)) return;
     E.ui.closeMenu();
     const itemEl = e.target.closest('.item');
 
     if (mode) return; // já existe um gesto em andamento com outro ponteiro
+
+    // Arrastar do pontinho de conexão = desenhar uma seta até outro item
+    if (itemEl && e.button === 0 && e.target.classList.contains('flow-port')) {
+      selectOnly(itemEl.dataset.id);
+      mode = 'connect';
+      drag = { pointerId: e.pointerId, fromId: itemEl.dataset.id, sx: e.clientX, sy: e.clientY, moved: false, overEl: null };
+      viewport.setPointerCapture(e.pointerId);
+      return;
+    }
 
     // Mover o canvas: botão do meio, ou Espaço segurado (mesmo em cima de itens)
     if (e.button === 1 || (e.button === 0 && spaceDown)) {
@@ -545,6 +583,7 @@
         it.y = s.y + dy / camera.z;
         E.items.position(els.get(s.id), it);
       });
+      E.flow.refresh();
     } else if (mode === 'resize') {
       const it = items.get(drag.id);
       if (!it) return;
@@ -557,6 +596,19 @@
       it.w = Math.max(60, w);
       it.h = Math.max(36, h);
       E.items.position(els.get(drag.id), it);
+      E.flow.refresh();
+    } else if (mode === 'connect') {
+      if (Math.hypot(dx, dy) > 6) drag.moved = true;
+      E.flow.temp(drag.fromId, screenToWorld(e.clientX, e.clientY));
+      const hit = document.elementFromPoint(e.clientX, e.clientY);
+      const overEl = hit && hit.closest ? hit.closest('.item') : null;
+      if (drag.overEl && drag.overEl !== overEl) drag.overEl.classList.remove('flow-target');
+      if (overEl && overEl.dataset.id !== drag.fromId) {
+        overEl.classList.add('flow-target');
+        drag.overEl = overEl;
+      } else {
+        drag.overEl = null;
+      }
     } else if (mode === 'marquee') {
       const r = viewport.getBoundingClientRect();
       const x1 = Math.min(drag.sx, e.clientX) - r.left;
@@ -589,6 +641,26 @@
     } else if (mode === 'resize' && drag) {
       const it = items.get(drag.id);
       if (it) saveItem(it);
+    } else if (mode === 'connect' && drag) {
+      E.flow.clearTemp();
+      if (drag.overEl) drag.overEl.classList.remove('flow-target');
+      const hit = document.elementFromPoint(e.clientX, e.clientY);
+      const overEl = hit && hit.closest ? hit.closest('.item') : null;
+      if (overEl && overEl.dataset.id !== drag.fromId) {
+        E.flow.connect(drag.fromId, overEl.dataset.id);
+      } else if (!overEl && drag.moved) {
+        // soltou no vazio: cria a próxima etapa já conectada
+        const p = screenToWorld(e.clientX, e.clientY);
+        const from = items.get(drag.fromId);
+        const color = from && from.kind === 'flownode' ? from.content.color : null;
+        const node = createFlowNode(p.x - 110, p.y - 44, 'step', '', color);
+        E.flow.connect(drag.fromId, node.id);
+        selectOnly(node.id);
+        E.items.beginEdit(node, els.get(node.id), saveItem);
+      } else if (!drag.moved) {
+        E.ui.toast('Arraste o pontinho até outro item pra criar a seta');
+      }
+      E.flow.refresh();
     } else if (mode === 'marquee' && drag && drag.rect) {
       const a = screenToWorld(drag.rect.x1 + viewport.getBoundingClientRect().left, drag.rect.y1 + viewport.getBoundingClientRect().top);
       const b = screenToWorld(drag.rect.x2 + viewport.getBoundingClientRect().left, drag.rect.y2 + viewport.getBoundingClientRect().top);
@@ -629,6 +701,7 @@
     // o que importa é o que está DEBAIXO do cursor neste momento
     const hit = document.elementFromPoint(e.clientX, e.clientY);
     if (isFormTarget(hit)) return;
+    if (hit && hit.closest && hit.closest('.flow-edge')) return; // a seta tem menu próprio no clique
     const itemEl = hit && hit.closest ? hit.closest('.item') : null;
     if (itemEl) {
       const it = items.get(itemEl.dataset.id);
@@ -659,6 +732,39 @@
         label: 'Reescrever com IA',
         icon: 'wand',
         onClick: () => E.ai.rewriteItem(it),
+      });
+    }
+    if (it && it.kind === 'flownode') {
+      const nextShape = E.flow.SHAPES[(E.flow.SHAPES.indexOf(it.content.shape || 'step') + 1) % E.flow.SHAPES.length];
+      entries.push(
+        {
+          label: 'Mudar formato (→ ' + E.flow.shapeLabel(nextShape) + ')',
+          icon: 'frame',
+          onClick: () => {
+            it.content.shape = nextShape;
+            E.items.refreshBody(it, els.get(it.id), saveItem);
+            saveItem(it);
+            E.flow.refresh();
+          },
+        },
+        {
+          label: 'Mudar cor do nó',
+          icon: 'droplet',
+          onClick: () => {
+            const i = E.flow.PALETTE.indexOf(it.content.color);
+            it.content.color = E.flow.PALETTE[(i + 1) % E.flow.PALETTE.length];
+            E.items.refreshBody(it, els.get(it.id), saveItem);
+            saveItem(it);
+            E.flow.refresh();
+          },
+        }
+      );
+    }
+    if (it) {
+      entries.push({
+        label: 'Conectar com seta',
+        icon: 'flow',
+        onClick: () => startConnectClick(it.id),
       });
     }
     entries.push(
@@ -850,6 +956,9 @@
     selection.clear();
     touchProject();
     updateEmptyHint();
+    // setas que apontavam pros excluídos somem do desenho (os dados ficam,
+    // então o Cmd+Z traz item E conexões de volta)
+    E.flow.refresh();
     if (E.schedule && E.schedule.isOpen()) E.schedule.refreshSoon();
     E.ui.toast(sel.length + (sel.length > 1 ? ' itens excluídos' : ' item excluído') + ' — Cmd+Z desfaz');
   }
@@ -867,6 +976,7 @@
     batch.forEach((it) => setSelected(it.id, true));
     touchProject();
     updateEmptyHint();
+    E.flow.refresh();
     E.ui.toast('Exclusão desfeita');
   }
 
@@ -891,10 +1001,26 @@
     return c;
   }
 
+  /* Conexões de fluxo das cópias: aponta pra cópia quando o destino também foi
+     copiado; senão mantém o destino original se ele ainda existir nesta aba */
+  function remapFlowEdges(copies, idMap) {
+    copies.forEach((copy) => {
+      const c = copy.content;
+      if (!c || !Array.isArray(c.next) || !c.next.length) return;
+      c.next = c.next
+        .map((e) => (idMap.has(e.to) ? { to: idMap.get(e.to), label: e.label || '' } : e))
+        .filter((e) => items.has(e.to));
+      saveItem(copy);
+    });
+    E.flow.refresh();
+  }
+
   async function duplicateSelection() {
     const sel = selectedItems();
     if (!sel.length) return;
     clearSelection();
+    const idMap = new Map();
+    const copies = [];
     for (const it of sel) {
       const copy = addItem({
         kind: it.kind,
@@ -904,8 +1030,11 @@
         h: it.h,
         content: await cloneContent(it.kind, it.content),
       });
+      idMap.set(it.id, copy.id);
+      copies.push(copy);
       setSelected(copy.id, true);
     }
+    remapFlowEdges(copies, idMap);
   }
 
   function copySelection() {
@@ -917,6 +1046,7 @@
       minY = Math.min(minY, it.y);
     });
     E.state.clipboard = sel.map((it) => ({
+      srcId: it.id, // pra religar as setas do fluxograma ao colar
       kind: it.kind,
       dx: it.x - minX,
       dy: it.y - minY,
@@ -938,6 +1068,8 @@
     }
     const c = viewCenterWorld();
     clearSelection();
+    const idMap = new Map();
+    const copies = [];
     for (const d of clip) {
       const copy = addItem({
         kind: d.kind,
@@ -947,8 +1079,11 @@
         h: d.h,
         content: await cloneContent(d.kind, d.content),
       });
+      if (d.srcId) idMap.set(d.srcId, copy.id);
+      copies.push(copy);
       setSelected(copy.id, true);
     }
+    remapFlowEdges(copies, idMap);
     E.ui.toast('Colado');
   }
 
@@ -1049,6 +1184,9 @@
       if (pendingCreate) {
         cancelPlacement();
         E.ui.toast('Criação cancelada');
+      } else if (pendingConnectFrom) {
+        cancelConnectClick();
+        E.ui.toast('Conexão cancelada');
       } else {
         clearSelection();
       }
@@ -1096,6 +1234,17 @@
     viewport.classList.remove('placing');
   }
 
+  /* Conexão por clique (menu de contexto): escolhe a origem, clica no destino */
+  function startConnectClick(fromId) {
+    pendingConnectFrom = fromId;
+    viewport.classList.add('placing');
+    E.ui.toast('Clique no item de destino da seta — Esc cancela');
+  }
+  function cancelConnectClick() {
+    pendingConnectFrom = null;
+    viewport.classList.remove('placing');
+  }
+
   const PALETTE = ['#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#fb7185', '#f472b6', '#e8e8ec'];
 
   document.getElementById('tool-create').addEventListener('click', (e) => {
@@ -1133,6 +1282,17 @@
           startPlacement('a mídia', (p) => {
             pendingImagePoint = p;
             fileInput.click();
+          }),
+      },
+      {
+        label: 'Fluxograma',
+        icon: 'flow',
+        onClick: () =>
+          startPlacement('a primeira etapa do fluxo', (p) => {
+            const node = createFlowNode(p.x - 110, p.y - 44, 'step', 'Nova etapa');
+            selectOnly(node.id);
+            E.items.beginEdit(node, els.get(node.id), saveItem);
+            E.ui.toast('Arraste do pontinho na borda do nó até outro item — ou solte no vazio pra criar a próxima etapa');
           }),
       },
       {
@@ -1287,6 +1447,13 @@
     selectOnly(item.id);
     return item;
   }
+
+  /* O fluxograma lê os itens da aba atual e salva pelo mesmo caminho do canvas */
+  E.flow.bind({
+    items: () => items,
+    els: () => els,
+    save: saveItem,
+  });
 
   E.canvas = {
     open, close, isOpen, createPost, spawnPoint, getState,

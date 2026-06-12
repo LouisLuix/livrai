@@ -36,6 +36,7 @@
     calendar:
       '<rect x="3.5" y="5.5" width="17" height="15" rx="1.6"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
     frame: '<path d="M7 2.5v19M17 2.5v19M2.5 7h19M2.5 17h19"/>',
+    flow: '<rect x="3" y="3.5" width="7.5" height="6" rx="1.4"/><rect x="13.5" y="14.5" width="7.5" height="6" rx="1.4"/><path d="M6.75 9.5v4a2 2 0 0 0 2 2h4.25"/><path d="m10.5 13 2.5 2.5-2.5 2.5"/>',
     link: '<path d="M10 14.5 14 10.5"/><path d="m12.5 7.5 2-2a3.5 3.5 0 0 1 5 5l-2 2M11.5 16.5l-2 2a3.5 3.5 0 0 1-5-5l2-2"/>',
     droplet: '<path d="M12 3.5c3.5 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2.5-6 6-10z"/>',
     palette:
