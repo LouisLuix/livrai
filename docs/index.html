@@ -47,6 +47,7 @@
       background: radial-gradient(ellipse 90% 70% at 50% 45%, rgba(255,92,38,0.06), transparent 60%), var(--bg);
       user-select: none; -webkit-user-select: none; }
     .hero.grabbing { cursor: grabbing; }
+    .uni-viewport { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
     .uni-scene { position: absolute; top: 50%; left: 50%; width: 0; height: 0; transform-style: preserve-3d; will-change: transform; }
     .uni-card { position: absolute; top: 0; left: 0; width: 270px; height: 195px; background: var(--panel);
       border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;
@@ -61,7 +62,9 @@
     .uni-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
     .hero-overlay { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 clamp(20px, 5vw, 64px) clamp(86px, 13vh, 130px); pointer-events: none;
-      background: linear-gradient(transparent 28%, rgba(10,10,11,0.5) 70%, rgba(10,10,11,0.92)); }
+      background: radial-gradient(ellipse 56% 52% at 26% 78%, rgba(10,10,11,0.82), transparent 70%),
+        linear-gradient(transparent 26%, rgba(10,10,11,0.55) 68%, rgba(10,10,11,0.95)); }
+    .hero-overlay h1, .hero-overlay .lede, .hero-overlay .eyebrow, .hero-overlay .hero-note { text-shadow: 0 2px 24px rgba(10,10,11,0.85); }
     .eyebrow { display: flex; align-items: center; gap: 14px; color: var(--muted); }
     .eyebrow::after { content: ''; flex: 0 0 64px; height: 1px; background: var(--line-strong); }
     h1 { font-family: var(--display); font-weight: 700; font-size: clamp(48px, 8.5vw, 116px); line-height: 0.96; letter-spacing: -0.035em; text-transform: uppercase; margin: 16px 0 18px; }
@@ -255,7 +258,7 @@
   <!-- ===== HERO: o Universo de verdade, em tela cheia ===== -->
   <header class="hero" id="hero">
     <p class="hero-hint">Você está dentro do Universo do LIVRAI — arraste pra girar</p>
-    <div class="uni-scene" id="uni-scene"></div>
+    <div class="uni-viewport" id="uni-viewport"><div class="uni-scene" id="uni-scene"></div></div>
 
     <div class="hero-overlay">
       <p class="eyebrow mono">Direção criativa, organizada</p>
@@ -508,7 +511,7 @@
       var CW = 270, CH = 195, GAP = 24, COLS = 10, ROWS = 3;
       var step = 360 / COLS;
       var radius = Math.round(((CW + GAP) * COLS) / (2 * Math.PI));
-      stage.style.perspective = Math.round(radius * 1.15) + 'px';
+      document.getElementById('uni-viewport').style.perspective = Math.round(radius * 1.15) + 'px';
 
       var cells = [];
       for (var i = 0; i < COLS * ROWS; i++) {
