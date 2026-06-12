@@ -1,7 +1,7 @@
-/* Ponte mínima com o sistema: entrega o caminho REAL de arquivos/pastas
-   arrastados pra dentro do app — páginas web não têm acesso a isso.
-   Nada além disso é exposto. */
-const { contextBridge, webUtils } = require('electron');
+/* Ponte mínima com o sistema — nada além disto é exposto:
+   — pathForFile: caminho REAL de arquivos/pastas arrastados pro app
+   — captureWebview: print da página do navegador embutido (tirado no main) */
+const { contextBridge, webUtils, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('livraiNative', {
   pathForFile: (file) => {
@@ -11,4 +11,5 @@ contextBridge.exposeInMainWorld('livraiNative', {
       return '';
     }
   },
+  captureWebview: (webContentsId) => ipcRenderer.invoke('livrai-capture-webview', webContentsId),
 });

@@ -3,7 +3,7 @@
    MODO DE ATUALIZAÇÃO AO VIVO: se a pasta de desenvolvimento existir,
    o app carrega as ferramentas direto dela — novas ferramentas chegam
    com ⌘R, sem reinstalar. Senão, usa a cópia embutida. */
-const { app, BrowserWindow, Menu, shell, dialog, ipcMain, safeStorage } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain, safeStorage, webContents } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -235,6 +235,43 @@ function handleStudio(req, res, u) {
     }
     res.writeHead(200, { 'Content-Type': STUDIO_MIME[path.extname(file).toLowerCase()] || 'application/octet-stream' });
     fs.createReadStream(file).pipe(res);
+    return;
+  }
+
+  // baixa uma imagem da web pro app (o processo principal não tem CORS) —
+  // usado pelo "Guardar imagem no projeto" do navegador embutido
+  if (u.pathname === '/__studio/fetch-url' && req.method === 'GET') {
+    const target = String(u.searchParams.get('u') || '');
+    if (!/^https?:\/\//i.test(target)) return json(400, { error: 'url inválida' });
+    const MAX = 30 * 1048576;
+    const get = (url, depth) => {
+      if (depth > 5) return json(502, { error: 'redirecionamentos demais' });
+      const mod = url.indexOf('https:') === 0 ? https : http;
+      const r2 = mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 30000 }, (up) => {
+        if (up.statusCode >= 301 && up.statusCode <= 308 && up.headers.location) {
+          up.resume();
+          return get(new URL(up.headers.location, url).href, depth + 1);
+        }
+        if (up.statusCode !== 200) {
+          up.resume();
+          return json(502, { error: 'status ' + up.statusCode });
+        }
+        res.writeHead(200, { 'Content-Type': up.headers['content-type'] || 'application/octet-stream' });
+        let total = 0;
+        up.on('data', (c) => {
+          total += c.length;
+          if (total > MAX) {
+            up.destroy();
+            res.destroy();
+            return;
+          }
+          res.write(c);
+        });
+        up.on('end', () => res.end());
+      });
+      r2.on('error', () => json(502, { error: 'falha na rede' }));
+    };
+    get(target, 0);
     return;
   }
 
@@ -593,6 +630,7 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
+      webviewTag: true, // navegador embutido (visão Navegador)
     },
   });
   mainWin = win;
@@ -655,6 +693,24 @@ function createWindow() {
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
+
+/* Navegador embutido: links _blank navegam na própria guia, e o print
+   da página é tirado aqui no processo principal (via ponte do preload) */
+app.on('web-contents-created', (e, contents) => {
+  if (contents.getType() === 'webview') {
+    contents.setWindowOpenHandler(({ url }) => {
+      if (/^https?:/i.test(url)) contents.loadURL(url);
+      return { action: 'deny' };
+    });
+  }
+});
+
+ipcMain.handle('livrai-capture-webview', async (e, wcId) => {
+  const wc = webContents.fromId(wcId);
+  if (!wc || wc.getType() !== 'webview') return null;
+  const img = await wc.capturePage();
+  return img.toDataURL();
+});
 
 app.whenReady().then(async () => {
   startProxy();

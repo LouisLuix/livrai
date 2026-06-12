@@ -29,8 +29,10 @@
     grid: document.getElementById('view-grid'),
     kanban: document.getElementById('view-kanban'),
     chat: document.getElementById('view-chat'),
+    browser: document.getElementById('view-browser'),
   };
   const chatView = document.getElementById('chat-view');
+  const browserView = document.getElementById('browser-view');
   const thumb = switchEl.querySelector('.view-thumb');
 
   function moveThumb() {
@@ -95,12 +97,13 @@
     );
 
     galleryView.classList.toggle('universe-mode', view === 'universe');
-    galleryView.classList.toggle('chat-mode', view === 'chat');
+    galleryView.classList.toggle('chat-mode', view === 'chat' || view === 'browser');
     grid.classList.toggle('hidden', view !== 'grid');
     grid.classList.toggle('selecting', selecting);
     board.classList.toggle('hidden', view !== 'kanban');
     universe.classList.toggle('hidden', view !== 'universe');
     chatView.classList.toggle('hidden', view !== 'chat');
+    browserView.classList.toggle('hidden', view !== 'browser');
 
     if (view === 'universe') {
       E.universe.render(universe, active);
@@ -109,6 +112,8 @@
       universe.innerHTML = '';
       if (view === 'chat') {
         E.chat.render(chatView);
+      } else if (view === 'browser') {
+        E.browser.render(browserView);
       } else if (view === 'kanban') {
         E.kanban.render(board, active.filter(matchClient));
       } else {
