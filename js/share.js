@@ -30,7 +30,7 @@
     else if (it.kind === 'link') content = { url: c.url || '', title: c.title || '' };
     else if (it.kind === 'frame') content = { text: c.text || '', preset: c.preset || '1:1' };
     else if (it.kind === 'flownode') content = { text: c.text || '', shape: c.shape || 'step', color: c.color || '#ff5c26' };
-    else if (it.kind === 'image') content = { m: mediaKeys.want(c.blobId), hasAlpha: !!c.hasAlpha };
+    else if (it.kind === 'image') content = { m: mediaKeys.want(c.blobId, !!c.hasAlpha), hasAlpha: !!c.hasAlpha };
     else if (it.kind === 'video') content = { placeholder: 'video', title: c.title || 'Vídeo' };
     else if (it.kind === 'audio') content = { placeholder: 'audio', title: c.title || 'Áudio' };
     else if (it.kind === 'file') content = { placeholder: 'file', name: c.name || 'Arquivo' };
@@ -56,11 +56,11 @@
     const wanted = [];
     const keyByBlob = new Map();
     const mediaKeys = {
-      want(blobId) {
+      want(blobId, alpha) {
         if (!blobId) return null;
         if (!keyByBlob.has(blobId)) {
           keyByBlob.set(blobId, 'm' + keyByBlob.size);
-          wanted.push(blobId);
+          wanted.push({ blobId: blobId, alpha: !!alpha });
         }
         return keyByBlob.get(blobId);
       },
@@ -72,12 +72,12 @@
 
     const media = {};
     let firstThumb = null;
-    for (const blobId of wanted) {
-      const rec = await E.db.get('blobs', blobId);
+    for (const w of wanted) {
+      const rec = await E.db.get('blobs', w.blobId);
       if (!rec || !rec.blob) continue;
-      const hasAlpha = rec.blob.type === 'image/png';
-      const small = await E.cloud.compressImage(rec.blob, 1280, hasAlpha);
-      media[keyByBlob.get(blobId)] = {
+      // PNG só quando a imagem TEM recorte — o resto vira JPEG (link leve)
+      const small = await E.cloud.compressImage(rec.blob, 1280, w.alpha);
+      media[keyByBlob.get(w.blobId)] = {
         t: small.type || 'image/jpeg',
         d: await E.cloud.blobToB64(small),
       };
@@ -167,14 +167,29 @@
     if (!existingId) doc.createdAt = Date.now();
     await ref.set(doc, { merge: true });
 
-    const batch = db.batch();
-    chunks.forEach((d, i) => {
-      batch.set(ref.collection('chunks').doc(String(i)), { i: i, d: d });
-    });
-    for (let i = chunks.length; i < oldChunkCount; i++) {
-      batch.delete(ref.collection('chunks').doc(String(i)));
+    // o vínculo é salvo JÁ — se a subida falhar no meio, "Atualizar link"
+    // regrava por cima do mesmo id em vez de criar um link órfão
+    if (!project.shares) project.shares = {};
+    project.shares[built.boardId] = shareId;
+    project.updatedAt = Date.now();
+    await E.db.put('projects', project);
+
+    // Firestore aceita no máx ~10MiB por lote — sobe em grupos de 8 chunks
+    const PER_BATCH = 8;
+    for (let i = 0; i < chunks.length; i += PER_BATCH) {
+      const batch = db.batch();
+      chunks.slice(i, i + PER_BATCH).forEach((d, j) => {
+        batch.set(ref.collection('chunks').doc(String(i + j)), { i: i + j, d: d });
+      });
+      await batch.commit();
     }
-    await batch.commit();
+    if (oldChunkCount > chunks.length) {
+      const batch = db.batch();
+      for (let i = chunks.length; i < oldChunkCount; i++) {
+        batch.delete(ref.collection('chunks').doc(String(i)));
+      }
+      await batch.commit();
+    }
 
     // galeria da comunidade: vitrine pública opcional
     try {
@@ -185,10 +200,6 @@
         await gref.delete().catch(() => {});
       }
     } catch (_) {}
-
-    project.shares[built.boardId] = shareId;
-    project.updatedAt = Date.now();
-    await E.db.put('projects', project);
 
     return { id: shareId, url: VIEW_URL + shareId, updated: !!existingId };
   }
