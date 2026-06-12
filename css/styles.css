@@ -2177,6 +2177,44 @@ body.kb-dragging * {
   visibility: hidden;
   pointer-events: none;
 }
+.crop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: crosshair;
+  user-select: none;
+  background: #0a0a0b;
+}
+.crop-shot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.crop-rect {
+  position: absolute;
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 0 0 100000px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+.crop-rect:not(.hidden) ~ .crop-hint {
+  opacity: 0;
+}
+.crop-hint {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  border-radius: 99px;
+  color: #fff;
+  font-size: 11.5px;
+  padding: 7px 16px;
+  pointer-events: none;
+}
+
 .browser-only-desktop {
   margin: auto;
   text-align: center;

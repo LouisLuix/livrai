@@ -111,6 +111,97 @@
     }
   }
 
+  /* Recorte: congela a página e o usuário arrasta a área que vira card */
+  async function captureRegion() {
+    const t = active();
+    if (!t || !t.wv) return;
+    const p = await requireTarget();
+    if (!p) return;
+    let dataUrl;
+    try {
+      dataUrl = await window.livraiNative.captureWebview(t.wv.getWebContentsId());
+    } catch (_) {
+      E.ui.toast('⚠️ Não consegui capturar a página');
+      return;
+    }
+    const img = new Image();
+    await new Promise((res, rej) => {
+      img.onload = res;
+      img.onerror = rej;
+      img.src = dataUrl;
+    });
+
+    const stage = container.querySelector('.browser-stage');
+    const overlay = document.createElement('div');
+    overlay.className = 'crop-overlay';
+    overlay.innerHTML =
+      '<img class="crop-shot" draggable="false" src="' + dataUrl + '">' +
+      '<div class="crop-rect hidden"></div>' +
+      '<div class="crop-hint mono">Arraste pra recortar a área · Esc cancela</div>';
+    stage.appendChild(overlay);
+    const rect = overlay.querySelector('.crop-rect');
+    const shot = overlay.querySelector('.crop-shot');
+
+    function cleanup() {
+      overlay.remove();
+      window.removeEventListener('keydown', onEsc, true);
+    }
+    function onEsc(e) {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        cleanup();
+      }
+    }
+    window.addEventListener('keydown', onEsc, true);
+
+    let start = null;
+    overlay.addEventListener('pointerdown', (e) => {
+      const r = overlay.getBoundingClientRect();
+      start = { x: e.clientX - r.left, y: e.clientY - r.top };
+      rect.classList.remove('hidden');
+      Object.assign(rect.style, { left: start.x + 'px', top: start.y + 'px', width: '0px', height: '0px' });
+      overlay.setPointerCapture(e.pointerId);
+    });
+    overlay.addEventListener('pointermove', (e) => {
+      if (!start) return;
+      const r = overlay.getBoundingClientRect();
+      const cx = e.clientX - r.left;
+      const cy = e.clientY - r.top;
+      Object.assign(rect.style, {
+        left: Math.min(start.x, cx) + 'px',
+        top: Math.min(start.y, cy) + 'px',
+        width: Math.abs(cx - start.x) + 'px',
+        height: Math.abs(cy - start.y) + 'px',
+      });
+    });
+    overlay.addEventListener('pointerup', async (e) => {
+      if (!start) return;
+      const r = overlay.getBoundingClientRect();
+      const cx = e.clientX - r.left;
+      const cy = e.clientY - r.top;
+      const x1 = Math.min(start.x, cx);
+      const y1 = Math.min(start.y, cy);
+      const w = Math.abs(cx - start.x);
+      const h = Math.abs(cy - start.y);
+      start = null;
+      if (w < 8 || h < 8) {
+        cleanup();
+        return;
+      }
+      // o print preenche o overlay (mesma proporção) — escala real/exibido
+      const sr = shot.getBoundingClientRect();
+      const sx = img.naturalWidth / sr.width;
+      const sy = img.naturalHeight / sr.height;
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(w * sx));
+      cv.height = Math.max(1, Math.round(h * sy));
+      cv.getContext('2d').drawImage(img, x1 * sx, y1 * sy, w * sx, h * sy, 0, 0, cv.width, cv.height);
+      cleanup();
+      const blob = await new Promise((res) => cv.toBlob(res, 'image/png'));
+      if (blob) await saveImageBlob(p, blob, 'Recorte');
+    });
+  }
+
   async function saveWebImage(srcURL) {
     const p = await requireTarget();
     if (!p) return;
@@ -353,7 +444,8 @@
         '<button class="btn ghost icon-only browser-reload" title="Recarregar">' + E.icon('refresh', 14) + '</button>' +
         '<input class="browser-url mono" spellcheck="false" placeholder="Endereço ou busca — Pinterest, Behance, referências…">' +
         '<select class="browser-target" title="Projeto onde os prints, imagens, textos e links serão guardados"></select>' +
-        '<button class="btn browser-shot">' + E.icon('camera', 14) + '<span>Print</span></button>' +
+        '<button class="btn browser-crop" title="Recortar uma área da página — só o pedaço escolhido vira card">' + E.icon('frame', 14) + '<span>Recorte</span></button>' +
+        '<button class="btn ghost browser-shot" title="Print da página inteira (área visível)">' + E.icon('camera', 14) + '<span>Print</span></button>' +
         '<button class="btn ghost browser-savelink" title="Guardar esta página como card de link">' + E.icon('link', 14) + '<span>Guardar página</span></button>' +
         '</div>' +
         '<div class="browser-tabs"></div>' +
@@ -384,6 +476,7 @@
         if (t && t.wv) t.wv.reload();
       });
       root.querySelector('.browser-shot').addEventListener('click', capturePage);
+      root.querySelector('.browser-crop').addEventListener('click', captureRegion);
       root.querySelector('.browser-savelink').addEventListener('click', () => {
         const t = active();
         if (t) savePageLink(t.url, t.title);
