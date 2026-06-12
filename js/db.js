@@ -2,7 +2,7 @@
 (function () {
   const E = window.Estudio;
   const DB_NAME = 'estudio-entregas';
-  const DB_VERSION = 4;
+  const DB_VERSION = 5;
   let dbPromise = null;
 
   function openDb() {
@@ -32,6 +32,10 @@
         // Lixeira — exclusões sobrevivem à sessão (purga após 30 dias)
         if (!db.objectStoreNames.contains('trash')) {
           db.createObjectStore('trash', { keyPath: 'id' });
+        }
+        // Chats — conversas com IA (qualquer LLM), com histórico
+        if (!db.objectStoreNames.contains('chats')) {
+          db.createObjectStore('chats', { keyPath: 'id' });
         }
       };
       req.onsuccess = () => resolve(req.result);

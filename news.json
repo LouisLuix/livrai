@@ -6,6 +6,12 @@
   },
   "posts": [
     {
+      "id": "2026-06-12-v170",
+      "date": "2026-06-12",
+      "title": "v1.7.0 — Chat: qualquer IA dentro do estúdio",
+      "body": "A home ganhou a visão Chat: converse com Claude, OpenAI, Gemini ou um modelo local (Ollama) com resposta em tempo real e histórico de conversas. Vincule um projeto e a IA passa a conhecer as notas, posts e marca dele. Gostou de um trecho da resposta? Selecione com o mouse e guarde como nota direto no canvas de qualquer projeto."
+    },
+    {
       "id": "2026-06-12-v160",
       "date": "2026-06-12",
       "title": "v1.6.0 — Conta LIVRAI completa",

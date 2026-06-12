@@ -1,6 +1,6 @@
 {
-  "version": "1.6.0",
+  "version": "1.7.0",
   "date": "2026-06-12",
-  "notes": "Conta LIVRAI completa: compartilhe decks por link público (com senha opcional — o conteúdo sobe cifrado), ligue a sincronização dos projetos na nuvem e acompanhe as Novidades dentro do app. De brinde: busca no projeto (Cmd+F), agenda geral de posts de todos os clientes, versões das artes salvas do Photoshop, lixeira de 30 dias, chaves de IA no cofre do sistema, pasta do Estúdio automática e hub de arquivos com explorador embutido.",
+  "notes": "Chat na home: converse com qualquer IA (Claude, OpenAI, Gemini ou modelos locais via Ollama) sem sair do estúdio — com histórico, respostas em tempo real, projeto vinculado como base da conversa e seleção de trecho que vira nota no canvas. Mais tudo da 1.6.0: compartilhar decks por link, sincronização na nuvem, novidades, busca Cmd+F, agenda geral, versões de arte, lixeira e cofre de chaves.",
   "url": "https://github.com/LouisLuix/livrai/releases/latest"
 }
