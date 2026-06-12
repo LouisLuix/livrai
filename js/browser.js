@@ -398,28 +398,82 @@
     strip.appendChild(add);
   }
 
+  /* "Guardar em": combo com BUSCA — digite o nome do projeto e selecione */
   async function renderTargetSelect() {
-    const sel = container.querySelector('.browser-target');
-    if (!sel) return;
-    sel.innerHTML = '';
-    const none = document.createElement('option');
-    none.value = '';
-    none.textContent = 'Guardar em…';
-    sel.appendChild(none);
+    const wrap = container.querySelector('.browser-target-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+
+    const input = document.createElement('input');
+    input.className = 'browser-target';
+    input.placeholder = 'Guardar em… (busque o projeto)';
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    const drop = document.createElement('div');
+    drop.className = 'target-drop hidden';
+    wrap.appendChild(input);
+    wrap.appendChild(drop);
+
     const projects = (await E.db.getAll('projects'))
       .filter((p) => !p.archived)
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-    projects.forEach((p) => {
-      const op = document.createElement('option');
-      op.value = p.id;
-      op.textContent = p.name;
-      sel.appendChild(op);
+    const cur = projects.find((p) => p.id === localStorage.getItem(TARGET_KEY));
+    if (cur) input.value = cur.name;
+
+    function pick(p) {
+      localStorage.setItem(TARGET_KEY, p.id);
+      input.value = p.name;
+      drop.classList.add('hidden');
+      input.blur();
+      E.ui.toast('Capturas vão pra "' + p.name + '"');
+    }
+
+    function renderList(q) {
+      const query = (q || '').trim().toLowerCase();
+      const hits = projects
+        .filter((p) => !query || (p.name || '').toLowerCase().indexOf(query) >= 0)
+        .slice(0, 12);
+      drop.innerHTML = '';
+      hits.forEach((p) => {
+        const row = document.createElement('button');
+        row.className = 'target-row';
+        row.textContent = p.name;
+        // pointerdown: seleciona ANTES do blur do input fechar a lista
+        row.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          pick(p);
+        });
+        drop.appendChild(row);
+      });
+      if (!hits.length) {
+        drop.innerHTML = '<p class="target-empty">Nenhum projeto com esse nome</p>';
+      }
+      drop.classList.remove('hidden');
+    }
+
+    input.addEventListener('focus', () => {
+      input.select();
+      renderList('');
     });
-    sel.value = localStorage.getItem(TARGET_KEY) || '';
-    if (sel.value === '' && localStorage.getItem(TARGET_KEY)) localStorage.removeItem(TARGET_KEY);
-    sel.addEventListener('change', () => {
-      if (sel.value) localStorage.setItem(TARGET_KEY, sel.value);
-      else localStorage.removeItem(TARGET_KEY);
+    input.addEventListener('input', () => renderList(input.value));
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') {
+        drop.classList.add('hidden');
+        input.blur();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const query = input.value.trim().toLowerCase();
+        const first = projects.find((p) => !query || (p.name || '').toLowerCase().indexOf(query) >= 0);
+        if (first) pick(first);
+      }
+    });
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        drop.classList.add('hidden');
+        const sel = projects.find((p) => p.id === localStorage.getItem(TARGET_KEY));
+        input.value = sel ? sel.name : '';
+      }, 150);
     });
   }
 
@@ -443,7 +497,7 @@
         '<button class="btn ghost icon-only browser-fwd" title="Avançar">›</button>' +
         '<button class="btn ghost icon-only browser-reload" title="Recarregar">' + E.icon('refresh', 14) + '</button>' +
         '<input class="browser-url mono" spellcheck="false" placeholder="Endereço ou busca — Pinterest, Behance, referências…">' +
-        '<select class="browser-target" title="Projeto onde os prints, imagens, textos e links serão guardados"></select>' +
+        '<div class="browser-target-wrap" title="Projeto onde os prints, imagens, textos e links serão guardados"></div>' +
         '<button class="btn browser-crop" title="Recortar uma área da página — só o pedaço escolhido vira card">' + E.icon('frame', 14) + '<span>Recorte</span></button>' +
         '<button class="btn ghost browser-shot" title="Print da página inteira (área visível)">' + E.icon('camera', 14) + '<span>Print</span></button>' +
         '<button class="btn ghost browser-savelink" title="Guardar esta página como card de link">' + E.icon('link', 14) + '<span>Guardar página</span></button>' +

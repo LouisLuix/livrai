@@ -2103,6 +2103,10 @@ body.kb-dragging * {
   outline: none;
   border-color: var(--accent);
 }
+.browser-target-wrap {
+  position: relative;
+  flex: none;
+}
 .browser-target {
   background: var(--panel-2);
   border: 1px solid var(--line);
@@ -2111,7 +2115,50 @@ body.kb-dragging * {
   font: inherit;
   font-size: 12.5px;
   padding: 8px 10px;
-  max-width: 190px;
+  width: 200px;
+}
+.browser-target:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.target-drop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 260px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 5px;
+  z-index: 60;
+}
+.target-row {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  padding: 8px 11px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.target-row:hover {
+  background: var(--panel-2);
+}
+.target-empty {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 12px 0;
 }
 .browser-tabs {
   display: flex;
