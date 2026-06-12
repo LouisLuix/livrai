@@ -40,27 +40,37 @@
     btn.appendChild(dot);
   }
 
+  /* Retorna 'update' | 'current' | 'error' — a seção Atualizações usa isso */
   async function check(force) {
     const last = parseInt(localStorage.getItem('livrai-update-checked'), 10) || 0;
     if (!force && Date.now() - last < CHECK_EVERY) {
       if (available()) showBadge();
-      return;
+      return available() ? 'update' : 'current';
     }
     try {
       const r = await fetch(URL + (URL.indexOf('?') < 0 ? '?t=' + Date.now() : ''), {
         cache: 'no-store',
       });
-      if (!r.ok) return;
+      if (!r.ok) return 'error';
       const data = await r.json();
-      if (!data || !data.version) return;
+      if (!data || !data.version) return 'error';
       latest = data;
       localStorage.setItem('livrai-latest', JSON.stringify(data));
       localStorage.setItem('livrai-update-checked', String(Date.now()));
-      if (available()) showBadge();
+      if (available()) {
+        showBadge();
+        return 'update';
+      }
+      return 'current';
     } catch (_) {
       /* offline ou bloqueado — tenta de novo na próxima */
+      return 'error';
     }
   }
 
-  E.updates = { check, available, info };
+  function lastChecked() {
+    return parseInt(localStorage.getItem('livrai-update-checked'), 10) || 0;
+  }
+
+  E.updates = { check, available, info, lastChecked };
 })();

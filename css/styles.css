@@ -2917,6 +2917,16 @@ input.post-date:hover {
   padding: 18px;
   margin-bottom: 14px;
 }
+.settings-block.update-avail {
+  border-color: rgba(255, 92, 38, 0.45);
+  background: linear-gradient(150deg, var(--accent-soft), var(--panel) 60%);
+}
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
 .settings-block h4 {
   display: flex;
   align-items: center;

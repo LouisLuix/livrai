@@ -1,6 +1,6 @@
 {
-  "version": "1.3.0",
+  "version": "1.3.1",
   "date": "2026-06-11",
-  "notes": "Fluxograma no canvas: etapas, decisões e setas conectando qualquer item — desenhe processos e organize ideias direto no projeto.",
+  "notes": "Fluxograma no canvas (etapas, decisões e setas) + novo menu Atualizações nas Configurações: verifique e baixe novas versões com um clique.",
   "url": "https://github.com/LouisLuix/livrai/releases/latest"
 }

@@ -9,6 +9,7 @@
     { id: 'ai', label: 'IA & Identidade', icon: 'sparkles' },
     { id: 'backup', label: 'Backup', icon: 'database' },
     { id: 'integrations', label: 'Integrações', icon: 'brush' },
+    { id: 'updates', label: 'Atualizações', icon: 'refresh' },
     { id: 'about', label: 'Licença', icon: 'logo' },
   ];
 
@@ -353,6 +354,95 @@
     content.appendChild(ps);
   }
 
+  /* Link direto do instalador no release da versão (tag v{versão} — nunca quebra
+     mesmo que uma versão mais nova vire "latest" antes do usuário clicar) */
+  function updateAssetUrl(version, file) {
+    return E.REPO_URL + '/releases/download/v' + version + '/' + file;
+  }
+
+  function sectionUpdates(content) {
+    content.innerHTML =
+      '<p class="settings-section-title">Atualizações</p>' +
+      '<p class="settings-desc">O Estúdio confere sozinho a cada 6 horas. ' +
+      'Aqui você verifica na hora e baixa a versão nova quando houver.</p>';
+
+    const current = document.createElement('div');
+    current.className = 'settings-block';
+    const last = E.updates.lastChecked();
+    current.innerHTML =
+      '<h4>' + E.icon('logo', 16) + '<span>Versão instalada</span></h4>' +
+      '<p class="mono">v' + E.APP_VERSION +
+      (last
+        ? ' · última verificação: ' + new Date(last).toLocaleString('pt-BR')
+        : ' · nunca verificado') +
+      '</p>';
+    const checkBtn = document.createElement('button');
+    checkBtn.className = 'btn primary';
+    E.setLabel(checkBtn, 'refresh', 'Verificar atualizações agora');
+    checkBtn.addEventListener('click', async () => {
+      checkBtn.disabled = true;
+      E.setLabel(checkBtn, 'refresh', 'Verificando…');
+      const res = await E.updates.check(true);
+      if (res === 'update') {
+        E.ui.toast('Versão ' + E.updates.info().version + ' disponível!');
+      } else if (res === 'current') {
+        E.ui.toast('Você já está na versão mais recente');
+      } else {
+        E.ui.toast('⚠️ Não consegui verificar — confira a internet e tente de novo');
+      }
+      sectionUpdates(content); // re-renderiza com o resultado
+    });
+    current.appendChild(checkBtn);
+    content.appendChild(current);
+
+    const up = E.updates.info();
+    if (up) {
+      const block = document.createElement('div');
+      block.className = 'settings-block update-avail';
+      block.innerHTML =
+        '<h4>' + E.icon('download', 16) + '<span>Nova versão disponível — v' + E.escapeHtml(up.version) + '</span></h4>' +
+        (up.notes ? '<p>' + E.escapeHtml(up.notes) + '</p>' : '') +
+        '<p>Baixe e instale por cima da versão atual — seus projetos continuam onde estão. ' +
+        'Quando o download terminar, feche o Estúdio e abra o arquivo baixado.</p>';
+      const actions = document.createElement('div');
+      actions.className = 'update-actions';
+      const mkDl = (label, file, primary) => {
+        const b = document.createElement('button');
+        b.className = primary ? 'btn primary' : 'btn';
+        E.setLabel(b, 'download', label);
+        b.addEventListener('click', () => {
+          window.open(updateAssetUrl(up.version, file), '_blank', 'noopener');
+          E.ui.toast('Baixando v' + up.version + '… quando terminar, feche o Estúdio e rode o arquivo');
+        });
+        actions.appendChild(b);
+      };
+      const plat = String(navigator.platform || '');
+      if (/mac/i.test(plat)) {
+        mkDl('Baixar pra Mac (Apple Silicon)', 'Livrai-' + up.version + '-macOS-arm64.zip', true);
+        mkDl('Mac com chip Intel', 'Livrai-' + up.version + '-macOS-x64.zip', false);
+      } else {
+        mkDl('Baixar e atualizar (Windows)', 'Instalar-Livrai-' + up.version + '-Windows.exe', true);
+      }
+      const page = document.createElement('button');
+      page.className = 'btn ghost';
+      E.setLabel(page, 'arrow-up-right', 'Ver no GitHub');
+      page.addEventListener('click', () => {
+        window.open(up.url || E.REPO_URL + '/releases/latest', '_blank', 'noopener');
+      });
+      actions.appendChild(page);
+      block.appendChild(actions);
+      content.appendChild(block);
+    } else {
+      const okBlock = document.createElement('div');
+      okBlock.className = 'settings-block';
+      okBlock.innerHTML =
+        '<h4>' + E.icon('check', 16) + '<span>Tudo em dia</span></h4>' +
+        '<p>Nenhuma atualização pendente. Quando sair versão nova, uma bolinha laranja ' +
+        'acende no botão Configurações e o download aparece aqui.</p>';
+      content.appendChild(okBlock);
+    }
+  }
+
   function sectionAbout(content) {
     content.innerHTML =
       '<p class="settings-section-title">Sobre &amp; Licença</p>' +
@@ -396,6 +486,7 @@
     ai: sectionAi,
     backup: sectionBackup,
     integrations: sectionIntegrations,
+    updates: sectionUpdates,
     about: sectionAbout,
   };
 
@@ -461,10 +552,8 @@
         (up.notes ? '<em>' + E.escapeHtml(up.notes) + '</em>' : '') +
         '</span>' +
         E.icon('arrow-up-right', 14);
-      banner.title = 'Baixar a nova versão no GitHub';
-      banner.addEventListener('click', () => {
-        window.open(up.url || E.REPO_URL, '_blank', 'noopener');
-      });
+      banner.title = 'Ver e baixar a nova versão';
+      banner.addEventListener('click', () => setSection('updates'));
       panel.appendChild(banner);
     }
 
