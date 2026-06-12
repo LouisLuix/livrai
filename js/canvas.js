@@ -438,12 +438,55 @@
     return item;
   }
 
+  async function createAudioFromBlob(blob, x, y) {
+    const blobId = await E.db.saveBlob(blob);
+    const title = (blob.name || 'Áudio').replace(/\.[^.]+$/, '');
+    const item = addItem({
+      kind: 'audio', x, y, w: 320, h: 100,
+      content: { blobId, title },
+    });
+    if (E.files && E.files.autoSaveImage) E.files.autoSaveImage(item, blob);
+    return item;
+  }
+
+  /* Qualquer outro arquivo (PDF, Office, ZIP…) vira um card de arquivo —
+     guardado no projeto e aberto no app nativo com um clique */
+  async function createFileFromBlob(blob, x, y) {
+    const blobId = await E.db.saveBlob(blob);
+    const name = blob.name || 'Arquivo';
+    const item = addItem({
+      kind: 'file', x, y, w: 220, h: 132,
+      content: { blobId, name: name, size: blob.size || 0, mime: blob.type || '' },
+    });
+    if (E.files && E.files.autoSaveFile) E.files.autoSaveFile(item, blob, name);
+    return item;
+  }
+
   /* Imagem OU vídeo vindo do computador (drag&drop, colar, file picker) */
   function isMediaFile(f) {
     return f.type.indexOf('image/') === 0 || f.type.indexOf('video/') === 0;
   }
   function createMediaFromBlob(f, x, y) {
     return f.type.indexOf('video/') === 0 ? createVideoFromBlob(f, x, y) : createImageFromBlob(f, x, y);
+  }
+
+  /* Roteia qualquer arquivo do computador pro card certo */
+  function createAnyFromBlob(f, x, y) {
+    const t = f.type || '';
+    if (t.indexOf('video/') === 0) return createVideoFromBlob(f, x, y);
+    if (t.indexOf('image/') === 0) return createImageFromBlob(f, x, y);
+    if (t.indexOf('audio/') === 0) return createAudioFromBlob(f, x, y);
+    return createFileFromBlob(f, x, y);
+  }
+
+  /* Importação vinda do explorador de pastas vinculadas */
+  async function importFile(blob, name) {
+    const c = viewCenterWorld();
+    let f = blob;
+    try {
+      f = new File([blob], name || blob.name || 'arquivo', { type: blob.type });
+    } catch (_) {}
+    return createAnyFromBlob(f, c.x - 110, c.y - 70);
   }
 
   /* ---------- seleção ---------- */
@@ -727,12 +770,35 @@
     if (!wasSelected) selectOnly(id);
     const it = items.get(id);
     const entries = [];
-    if (it && (it.kind === 'note' || it.kind === 'post' || it.kind === 'label')) {
+    const noteLinked = it && it.kind === 'note' && it.content && it.content.pageId;
+    if (it && ((it.kind === 'note' && !noteLinked) || it.kind === 'post' || it.kind === 'label')) {
       entries.push({
         label: 'Reescrever com IA',
         icon: 'wand',
         onClick: () => E.ai.rewriteItem(it),
       });
+    }
+    if (it && it.kind === 'note') {
+      if (noteLinked) {
+        entries.push(
+          {
+            label: 'Abrir nas Notas',
+            icon: 'note',
+            onClick: () => E.notes.openPage(it.content.pageId),
+          },
+          {
+            label: 'Desvincular das Notas',
+            icon: 'link',
+            onClick: () => unlinkNoteCard(it),
+          }
+        );
+      } else {
+        entries.push({
+          label: 'Vincular às Notas do projeto',
+          icon: 'note',
+          onClick: () => linkNoteCard(it),
+        });
+      }
     }
     if (it && it.kind === 'flownode') {
       const nextShape = E.flow.SHAPES[(E.flow.SHAPES.indexOf(it.content.shape || 'step') + 1) % E.flow.SHAPES.length];
@@ -820,6 +886,11 @@
         icon: 'sparkles',
         onClick: () => E.ai.captionPost(it),
       });
+      entries.unshift({
+        label: 'Publicar no Instagram',
+        icon: 'smartphone',
+        onClick: () => E.insta.publishPost(it),
+      });
     }
     if (it && (it.kind === 'image' || it.kind === 'video')) {
       if (it.kind === 'image') {
@@ -845,6 +916,34 @@
         });
       }
     }
+    if (it && it.kind === 'file') {
+      entries.unshift(
+        {
+          label: 'Abrir no aplicativo',
+          icon: 'arrow-up-right',
+          onClick: () => E.files.openFileItem(it),
+        },
+        {
+          label: 'Mostrar no Finder',
+          icon: 'eye',
+          onClick: () => E.files.openFileItem(it, 'reveal'),
+        }
+      );
+    }
+    if (it && it.kind === 'folder') {
+      entries.unshift(
+        {
+          label: 'Explorar aqui dentro',
+          icon: 'eye',
+          onClick: () => E.explorer.open(it.content.path, it.content.name),
+        },
+        {
+          label: 'Abrir no Finder',
+          icon: 'folder',
+          onClick: () => E.files.openPath(it.content.path).catch(() => {}),
+        }
+      );
+    }
     if (it && it.kind === 'image') {
       entries.push({
         label: 'Usar como capa do projeto',
@@ -860,13 +959,54 @@
     E.ui.menu(e.clientX, e.clientY, entries);
   });
 
+  /* ---------- nota do canvas ↔ Notas do projeto ---------- */
+
+  /* O texto do card vira uma página nas Notas; o card passa a espelhar a página */
+  function linkNoteCard(it) {
+    if (!project.notes) project.notes = {};
+    if (!Array.isArray(project.notes.pages)) project.notes.pages = [];
+    const page = E.notes.pageFromText(it.content.text);
+    project.notes.pages.push(page);
+    project.notes.lastPageId = page.id;
+    it.content.pageId = page.id;
+    touchProject();
+    saveProjectNow();
+    E.items.refreshBody(it, els.get(it.id), saveItem);
+    saveItem(it);
+    E.ui.toast('Nota vinculada — agora ela vive nas Notas do projeto');
+    E.notes.openPage(page.id);
+  }
+
+  /* Desfaz o vínculo: o conteúdo da página volta pro card como texto */
+  function unlinkNoteCard(it) {
+    const pages = (project.notes && project.notes.pages) || [];
+    const page = pages.find((p) => p.id === it.content.pageId);
+    if (page) it.content.text = E.notes.pageToText(page);
+    delete it.content.pageId;
+    E.items.refreshBody(it, els.get(it.id), saveItem);
+    saveItem(it);
+    E.ui.toast('Nota desvinculada' + (page ? ' — a página continua nas Notas' : ''));
+  }
+
+  /* Re-renderiza os cards vinculados a uma página (edição feita no painel) */
+  function refreshNoteCards(pgId) {
+    items.forEach((it) => {
+      if (it.kind === 'note' && it.content && it.content.pageId === pgId) {
+        const el = els.get(it.id);
+        if (el) E.items.refreshBody(it, el, saveItem);
+      }
+    });
+  }
+
   /* ---------- posts com imagem / carrossel ---------- */
 
   function mediaEntry(it) {
     return { blobId: it.content.blobId, kind: it.kind === 'video' ? 'video' : 'image' };
   }
 
-  /* Vários itens selecionados viram um post carrossel (ordem: esquerda → direita) */
+  /* Vários itens selecionados viram um post carrossel (ordem: esquerda → direita).
+     Os cards originais SOMEM do canvas — as imagens passam a viver só dentro
+     do post (Cmd+Z desfaz e traz os cards de volta). */
   function selectionToPost(mediaItems) {
     const list = mediaItems.slice().sort((a, b) => a.x - b.x || a.y - b.y);
     const media = list.map(mediaEntry).filter((m) => m.blobId);
@@ -874,17 +1014,18 @@
     const first = list[0];
     const post = addItem({
       kind: 'post',
-      x: first.x + first.w + 30,
+      x: first.x,
       y: first.y,
       w: 280,
       h: 380,
       content: { text: '', date: '', status: 'ideia', media: media, mediaIndex: 0 },
     });
+    removeItems(list);
     selectOnly(post.id);
     E.ui.toast(
       media.length > 1
-        ? 'Post carrossel criado com ' + media.length + ' itens'
-        : 'Post criado com a imagem — dois cliques pra escrever a legenda'
+        ? 'Post carrossel criado — as ' + media.length + ' mídias agora vivem dentro dele (Cmd+Z desfaz)'
+        : 'Virou post — a imagem agora vive dentro dele (Cmd+Z desfaz)'
     );
   }
 
@@ -896,19 +1037,18 @@
   }
 
   function attachSelectionToPost(post, mediaItems) {
+    const list = mediaItems.slice().sort((a, b) => a.x - b.x || a.y - b.y);
     const media = E.items.postMedia(post.content).slice();
-    mediaItems
-      .slice()
-      .sort((a, b) => a.x - b.x || a.y - b.y)
-      .forEach((m) => {
-        if (m.content.blobId) media.push(mediaEntry(m));
-      });
+    list.forEach((m) => {
+      if (m.content.blobId) media.push(mediaEntry(m));
+    });
     post.content.media = media;
     delete post.content.blobId;
     growPost(post);
+    removeItems(list); // os cards somem — as mídias agora vivem dentro do post
     E.items.refreshBody(post, els.get(post.id), saveItem);
     saveItem(post);
-    E.ui.toast('Carrossel agora tem ' + media.length + ' itens');
+    E.ui.toast('Carrossel agora tem ' + media.length + ' itens (Cmd+Z traz os cards de volta)');
   }
 
   function pickImageForPost(it) {
@@ -940,8 +1080,9 @@
 
   /* ---------- excluir / desfazer / duplicar / copiar ---------- */
 
-  function deleteSelection() {
-    const sel = selectedItems();
+  /* Remove itens do canvas (com direito a Cmd+Z) — usado pela exclusão e
+     pelas imagens que "somem" pra dentro de um post */
+  function removeItems(sel) {
     if (!sel.length) return;
     deletedStack.push(sel.map((it) => Object.assign({}, it, { content: structuredClone(it.content) })));
     const goneIds = new Set(sel.map((it) => it.id));
@@ -950,16 +1091,23 @@
       if (el) el.remove();
       els.delete(it.id);
       items.delete(it.id);
+      selection.delete(it.id);
       E.db.del('items', it.id);
     });
     allList = allList.filter((it) => !goneIds.has(it.id));
-    selection.clear();
     touchProject();
     updateEmptyHint();
     // setas que apontavam pros excluídos somem do desenho (os dados ficam,
     // então o Cmd+Z traz item E conexões de volta)
     E.flow.refresh();
     if (E.schedule && E.schedule.isOpen()) E.schedule.refreshSoon();
+  }
+
+  function deleteSelection() {
+    const sel = selectedItems();
+    if (!sel.length) return;
+    removeItems(sel);
+    selection.clear();
     E.ui.toast(sel.length + (sel.length > 1 ? ' itens excluídos' : ' item excluído') + ' — Cmd+Z desfaz');
   }
 
@@ -1093,12 +1241,12 @@
     if (!isOpen() || E.state.editing || isFormTarget(document.activeElement)) return;
     const cd = e.clipboardData;
     if (!cd) return;
-    const files = [...cd.files].filter(isMediaFile);
+    const files = [...cd.files];
     if (files.length) {
       e.preventDefault();
       const c = viewCenterWorld();
       for (let i = 0; i < files.length; i++) {
-        await createMediaFromBlob(files[i], c.x + i * 36, c.y + i * 36);
+        await createAnyFromBlob(files[i], c.x + i * 36, c.y + i * 36);
       }
       return;
     }
@@ -1131,10 +1279,10 @@
     e.preventDefault();
     if (!isOpen()) return;
     const p = screenToWorld(e.clientX, e.clientY);
-    const files = [...e.dataTransfer.files].filter(isMediaFile);
+    const files = [...e.dataTransfer.files];
     if (files.length) {
       for (let i = 0; i < files.length; i++) {
-        await createMediaFromBlob(files[i], p.x + i * 44, p.y + i * 44);
+        await createAnyFromBlob(files[i], p.x + i * 44, p.y + i * 44);
       }
       return;
     }
@@ -1282,6 +1430,38 @@
           startPlacement('a mídia', (p) => {
             pendingImagePoint = p;
             fileInput.click();
+          }),
+      },
+      {
+        label: 'Arquivo (PDF, Office, qualquer um)',
+        icon: 'copy',
+        onClick: () =>
+          startPlacement('o arquivo', (p) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.addEventListener('change', async () => {
+              const files = [...input.files];
+              for (let i = 0; i < files.length; i++) {
+                await createAnyFromBlob(files[i], p.x - 110 + i * 44, p.y - 66 + i * 44);
+              }
+            });
+            input.click();
+          }),
+      },
+      {
+        label: 'Pasta do computador',
+        icon: 'folder',
+        onClick: () =>
+          startPlacement('a pasta', async (p) => {
+            const r = await E.files.linkFolder();
+            if (!r) return;
+            const folder = addItem({
+              kind: 'folder', x: p.x - 110, y: p.y - 66, w: 220, h: 132,
+              content: { path: r.path, name: r.name },
+            });
+            selectOnly(folder.id);
+            E.ui.toast('Pasta vinculada — dois cliques pra explorar sem sair do Estúdio');
           }),
       },
       {
@@ -1458,6 +1638,6 @@
   E.canvas = {
     open, close, isOpen, createPost, spawnPoint, getState,
     addGeneratedImage, addGeneratedVideo, addGeneratedAudio, addGeneratedNote,
-    getAllItems, focusItem, refreshItem, refreshGenCards,
+    getAllItems, focusItem, refreshItem, refreshGenCards, refreshNoteCards, importFile,
   };
 })();

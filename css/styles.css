@@ -1229,6 +1229,247 @@ body.kb-dragging * {
   overflow: hidden;
 }
 
+/* Nota smart: título, subtítulo, lista, tarefa, divisor e formatação inline */
+.note-rich {
+  white-space: normal;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.note-rich .note-p {
+  min-height: 1.2em;
+}
+.note-rich .note-h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.3;
+  margin: 2px 0;
+}
+.note-rich .note-h2 {
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+.note-rich .note-li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.note-rich .note-bullet {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+  margin-top: 8px;
+  opacity: 0.7;
+}
+.note-rich .note-todo {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.note-check {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  margin-top: 3px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(42, 36, 8, 0.55);
+  background: transparent;
+  color: #2a2408;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.note-todo.done .note-check {
+  background: #2a2408;
+  color: #efe3a2;
+  border-color: #2a2408;
+}
+.note-todo.done > span {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.note-rich .note-hr {
+  height: 1px;
+  background: rgba(42, 36, 8, 0.25);
+  margin: 6px 0;
+}
+
+/* Nota vinculada às Notas do projeto (a página é a fonte da verdade) */
+.note-linked {
+  display: flex;
+  flex-direction: column;
+}
+.note-link-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  flex: none;
+}
+.note-linked .note-text {
+  padding-top: 7px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ===== Cards de arquivo e pasta ===== */
+.item-file .item-body,
+.item-folder .item-body {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  padding: 14px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.file-icon {
+  color: var(--accent);
+  opacity: 0.9;
+  flex: none;
+}
+.file-name {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.file-info {
+  font-size: 10.5px;
+  opacity: 0.55;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-open {
+  margin-top: auto;
+  align-self: flex-start;
+}
+
+/* ===== Explorador de pastas vinculadas ===== */
+.modal.explorer {
+  width: min(720px, calc(100vw - 60px));
+  height: min(560px, calc(100vh - 80px));
+  display: flex;
+  flex-direction: column;
+  padding: 18px 20px;
+  gap: 12px;
+}
+.explorer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-width: 0;
+}
+.explorer-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+}
+.explorer-crumb {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+.explorer-crumb:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+.explorer-crumb.current {
+  color: var(--text);
+  font-weight: 600;
+  cursor: default;
+}
+.explorer-sep {
+  color: var(--muted);
+  opacity: 0.5;
+  flex: none;
+}
+.explorer-list {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px;
+}
+.explorer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  user-select: none;
+}
+.explorer-row:hover {
+  background: var(--panel-2);
+}
+.explorer-ic {
+  color: var(--muted);
+  display: inline-flex;
+  flex: none;
+}
+.explorer-row.is-dir .explorer-ic {
+  color: var(--accent);
+}
+.explorer-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.explorer-meta {
+  font-size: 11px;
+  color: var(--muted);
+  flex: none;
+}
+.explorer-add {
+  opacity: 0;
+  flex: none;
+}
+.explorer-row:hover .explorer-add {
+  opacity: 1;
+}
+.explorer-empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 40px 0;
+}
+
 /* Título de seção */
 .item-label {
   box-shadow: none;
@@ -1703,8 +1944,8 @@ body.kb-dragging * {
   cursor: crosshair;
   z-index: 3;
 }
-.item-flownode:hover .flow-port,
-.item-flownode.sel .flow-port {
+.item:hover .flow-port,
+.item.sel .flow-port {
   opacity: 1;
 }
 .flow-port:hover {

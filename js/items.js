@@ -47,10 +47,14 @@
     const c = item.content || {};
 
     if (item.kind === 'note') {
-      const t = document.createElement('div');
-      t.className = 'note-text';
-      t.textContent = c.text || '';
-      body.appendChild(t);
+      if (c.pageId) {
+        renderLinkedNote(item, body, el, onChange);
+      } else {
+        const t = document.createElement('div');
+        t.className = 'note-text note-rich';
+        renderNoteRich(item, t, el, onChange);
+        body.appendChild(t);
+      }
     } else if (item.kind === 'label') {
       const t = document.createElement('span');
       t.className = 'label-text';
@@ -64,15 +68,6 @@
       t.className = 'flow-text';
       t.textContent = c.text || '';
       body.appendChild(t);
-      // pontinhos de conexão nas 4 bordas (ficam no el pra escapar do clip do losango)
-      ['t', 'r', 'b', 'l'].forEach((side) => {
-        if (el.querySelector('.flow-port[data-side="' + side + '"]')) return;
-        const port = document.createElement('div');
-        port.className = 'flow-port';
-        port.dataset.side = side;
-        port.title = 'Arraste até outro item pra criar a seta';
-        el.appendChild(port);
-      });
     } else if (item.kind === 'image') {
       const img = document.createElement('img');
       img.draggable = false;
@@ -559,8 +554,222 @@
       t.className = 'note-text post-text';
       t.textContent = c.text || '';
       body.appendChild(t);
+    } else if (item.kind === 'file') {
+      body.classList.add('file-body');
+      const meta = E.items.fileMeta(c.name);
+      const ic = document.createElement('div');
+      ic.className = 'file-icon';
+      ic.innerHTML = E.icon(meta.icon, 26);
+      const nm = document.createElement('div');
+      nm.className = 'file-name';
+      nm.textContent = c.name || 'Arquivo';
+      nm.title = c.name || '';
+      const inf = document.createElement('div');
+      inf.className = 'file-info mono';
+      inf.textContent = meta.label + (c.size ? ' · ' + humanSize(c.size) : '');
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'item-action file-open';
+      E.setLabel(open, 'arrow-up-right', 'Abrir');
+      open.title = 'Abrir no aplicativo do arquivo';
+      open.addEventListener('click', () => E.files.openFileItem(item));
+      body.appendChild(ic);
+      body.appendChild(nm);
+      body.appendChild(inf);
+      body.appendChild(open);
+    } else if (item.kind === 'folder') {
+      body.classList.add('folder-body');
+      const ic = document.createElement('div');
+      ic.className = 'file-icon';
+      ic.innerHTML = E.icon('folder', 26);
+      const nm = document.createElement('div');
+      nm.className = 'file-name';
+      nm.textContent = c.name || 'Pasta';
+      nm.title = c.path || '';
+      const inf = document.createElement('div');
+      inf.className = 'file-info mono';
+      inf.textContent = shortPath(c.path);
+      inf.title = c.path || '';
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'item-action file-open';
+      E.setLabel(open, 'eye', 'Explorar');
+      open.title = 'Navegar nesta pasta sem sair do Estúdio';
+      open.addEventListener('click', () => E.explorer.open(c.path, c.name));
+      body.appendChild(ic);
+      body.appendChild(nm);
+      body.appendChild(inf);
+      body.appendChild(open);
+    }
+
+    // Fluxograma universal: pontinhos de conexão nas 4 bordas de QUALQUER
+    // card (menos pranchas) — uma imagem pode puxar seta pra uma nota, etc.
+    // Ficam no el (não no body) pra escapar do clip/overflow do card.
+    if (item.kind !== 'frame') {
+      ['t', 'r', 'b', 'l'].forEach((side) => {
+        if (el.querySelector('.flow-port[data-side="' + side + '"]')) return;
+        const port = document.createElement('div');
+        port.className = 'flow-port';
+        port.dataset.side = side;
+        port.title = 'Arraste até outro item pra criar a seta';
+        el.appendChild(port);
+      });
     }
   };
+
+  /* ---------- arquivos genéricos (PDF, Office…) ---------- */
+
+  const FILE_KINDS = [
+    { exts: ['pdf'], icon: 'note', label: 'PDF' },
+    { exts: ['doc', 'docx', 'odt', 'rtf', 'pages'], icon: 'type', label: 'Documento' },
+    { exts: ['xls', 'xlsx', 'csv', 'ods', 'numbers'], icon: 'grid', label: 'Planilha' },
+    { exts: ['ppt', 'pptx', 'odp', 'key'], icon: 'monitor', label: 'Apresentação' },
+    { exts: ['psd', 'psb', 'ai', 'indd', 'xd', 'fig', 'sketch'], icon: 'brush', label: 'Design' },
+    { exts: ['zip', 'rar', '7z', 'tar', 'gz'], icon: 'archive', label: 'Compactado' },
+    { exts: ['txt', 'md'], icon: 'type', label: 'Texto' },
+    { exts: ['ttf', 'otf', 'woff', 'woff2'], icon: 'type', label: 'Fonte' },
+  ];
+
+  E.items.fileMeta = function (name) {
+    const ext = String(name || '').split('.').pop().toLowerCase();
+    for (const k of FILE_KINDS) {
+      if (k.exts.indexOf(ext) >= 0) return { icon: k.icon, label: k.label, ext: ext };
+    }
+    return { icon: 'copy', label: ext && ext !== name ? ext.toUpperCase() : 'Arquivo', ext: ext };
+  };
+
+  function humanSize(n) {
+    if (!n) return '';
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return Math.round(n / 1024) + ' KB';
+    if (n < 1073741824) return (n / 1048576).toFixed(1).replace('.0', '') + ' MB';
+    return (n / 1073741824).toFixed(1) + ' GB';
+  }
+  E.items.humanSize = humanSize;
+
+  function shortPath(p) {
+    const parts = String(p || '').split('/').filter(Boolean);
+    return parts.length > 2 ? '…/' + parts.slice(-2).join('/') : '/' + parts.join('/');
+  }
+
+  /* ---------- nota smart: título, formatação e checklist no próprio card ----------
+     Sintaxe (a mesma das Notas do projeto): "# " título · "## " subtítulo ·
+     "- " lista · "[] " / "[x] " tarefa · "---" divisor · **negrito** · *itálico* */
+
+  function inlineFmt(s) {
+    return E.escapeHtml(s)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  }
+
+  const TODO_RE = /^\[(x|X| )?\]\s?(.*)$/;
+
+  function noteRow(cls, html) {
+    const row = document.createElement('div');
+    row.className = cls;
+    if (html !== undefined) row.innerHTML = html;
+    return row;
+  }
+
+  function noteBullet(html) {
+    const row = noteRow('note-li');
+    row.innerHTML = '<span class="note-bullet"></span><span>' + html + '</span>';
+    return row;
+  }
+
+  function noteTodo(html, done, onToggle) {
+    const row = noteRow('note-todo' + (done ? ' done' : ''));
+    const cb = document.createElement('button');
+    cb.type = 'button';
+    cb.className = 'note-check';
+    cb.innerHTML = done ? E.icon('check', 11) : '';
+    cb.title = done ? 'Reabrir tarefa' : 'Concluir tarefa';
+    cb.addEventListener('click', onToggle);
+    const sp = document.createElement('span');
+    sp.innerHTML = html;
+    row.appendChild(cb);
+    row.appendChild(sp);
+    return row;
+  }
+
+  function renderNoteRich(item, holder, el, onChange) {
+    const lines = String((item.content && item.content.text) || '').split('\n');
+    lines.forEach((line, idx) => {
+      const todo = line.match(TODO_RE);
+      if (/^---+\s*$/.test(line)) {
+        holder.appendChild(noteRow('note-hr'));
+      } else if (line.indexOf('## ') === 0) {
+        holder.appendChild(noteRow('note-h2', inlineFmt(line.slice(3))));
+      } else if (line.indexOf('# ') === 0) {
+        holder.appendChild(noteRow('note-h1', inlineFmt(line.slice(2))));
+      } else if (line.indexOf('- ') === 0) {
+        holder.appendChild(noteBullet(inlineFmt(line.slice(2))));
+      } else if (todo) {
+        const done = (todo[1] || '').toLowerCase() === 'x';
+        holder.appendChild(
+          noteTodo(inlineFmt(todo[2]), done, () => {
+            const ls = String(item.content.text || '').split('\n');
+            ls[idx] = (done ? '[] ' : '[x] ') + todo[2];
+            item.content.text = ls.join('\n');
+            E.items.refreshBody(item, el, onChange);
+            if (onChange) onChange(item);
+          })
+        );
+      } else {
+        holder.appendChild(noteRow('note-p', line.trim() ? inlineFmt(line) : '&nbsp;'));
+      }
+    });
+  }
+
+  /* ---------- nota vinculada às Notas do projeto ----------
+     A página do painel lateral é a fonte da verdade: o card mostra um
+     espelho vivo dela; dois cliques abrem a página no painel. */
+
+  function renderLinkedNote(item, body, el, onChange) {
+    const c = item.content || {};
+    body.classList.add('note-linked');
+    const proj = E.canvas && E.canvas.isOpen && E.canvas.isOpen() ? E.canvas.getState().project : null;
+    const page =
+      proj && proj.notes && Array.isArray(proj.notes.pages)
+        ? proj.notes.pages.find((p) => p.id === c.pageId)
+        : null;
+
+    const head = document.createElement('div');
+    head.className = 'note-link-head';
+    head.title = 'Vinculada às Notas do projeto — dois cliques abrem a página';
+    head.innerHTML =
+      E.icon('note', 12) +
+      '<span>' + E.escapeHtml(page ? page.title || 'Sem título' : 'Página excluída') + '</span>';
+    body.appendChild(head);
+
+    const holder = document.createElement('div');
+    holder.className = 'note-text note-rich';
+    if (!page) {
+      holder.textContent =
+        'A página desta nota foi excluída das Notas. Botão direito → Desvincular pra editar aqui.';
+    } else {
+      (page.blocks || []).forEach((b) => {
+        if (b.type === 'divider') holder.appendChild(noteRow('note-hr'));
+        else if (b.type === 'h1') holder.appendChild(noteRow('note-h1', inlineFmt(b.text)));
+        else if (b.type === 'h2') holder.appendChild(noteRow('note-h2', inlineFmt(b.text)));
+        else if (b.type === 'li') holder.appendChild(noteBullet(inlineFmt(b.text)));
+        else if (b.type === 'todo') {
+          holder.appendChild(
+            noteTodo(inlineFmt(b.text), !!b.checked, () => {
+              b.checked = !b.checked;
+              proj.updatedAt = Date.now();
+              E.db.put('projects', proj);
+              E.items.refreshBody(item, el, onChange);
+              if (E.notes && E.notes.refreshPage) E.notes.refreshPage(page.id);
+            })
+          );
+        } else {
+          holder.appendChild(noteRow('note-p', b.text.trim() ? inlineFmt(b.text) : '&nbsp;'));
+        }
+      });
+    }
+    body.appendChild(holder);
+  }
 
   function formatDate(iso) {
     const parts = String(iso).split('-');
@@ -570,6 +779,19 @@
 
   /** Edição conforme o tipo do item (acionada por duplo clique) */
   E.items.beginEdit = function (item, el, onChange) {
+    if (item.kind === 'note' && item.content && item.content.pageId) {
+      // nota vinculada: quem edita é a página, no painel de Notas
+      if (E.notes && E.notes.openPage) E.notes.openPage(item.content.pageId);
+      return;
+    }
+    if (item.kind === 'file') {
+      E.files.openFileItem(item);
+      return;
+    }
+    if (item.kind === 'folder') {
+      E.explorer.open(item.content.path, item.content.name);
+      return;
+    }
     if (item.kind === 'note' || item.kind === 'label' || item.kind === 'post' || item.kind === 'frame' || item.kind === 'flownode') {
       textEdit(item, el, onChange);
     } else if (item.kind === 'color') {
@@ -596,6 +818,9 @@
       (item.kind === 'label' ? ' editor-label' : '') +
       (item.kind === 'frame' ? ' editor-frame' : '');
     ta.value = (item.content && item.content.text) || '';
+    if (item.kind === 'note') {
+      ta.placeholder = '# título · ## subtítulo · - lista · [] tarefa · **negrito** · *itálico* · ---';
+    }
     ta.spellcheck = false;
     el.appendChild(ta);
     body.style.visibility = 'hidden';

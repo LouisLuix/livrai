@@ -25,6 +25,8 @@
     if (page) page.updatedAt = Date.now();
     project.updatedAt = Date.now();
     await E.db.put('projects', project);
+    // cards do canvas vinculados a esta página se atualizam na hora
+    if (page && E.canvas && E.canvas.refreshNoteCards) E.canvas.refreshNoteCards(page.id);
   }, 400);
 
   function isOpen() {
@@ -404,5 +406,67 @@
 
   document.getElementById('tool-notes').addEventListener('click', toggle);
 
-  E.notes = { toggle, open, close, isOpen };
+  /* ---------- ponte com os cards de nota do canvas ---------- */
+
+  /* Abre o painel já na página pedida (cards vinculados usam no duplo clique) */
+  function openPage(id) {
+    if (!isOpen()) open();
+    if (!project) return;
+    if (project.notes.pages.some((p) => p.id === id)) {
+      pageId = id;
+      project.notes.lastPageId = id;
+      save();
+      render();
+    }
+  }
+
+  /* Re-renderiza o painel se a página estiver visível (ex.: tarefa marcada no card) */
+  function refreshPage(id) {
+    if (isOpen() && project && pageId === id) render();
+  }
+
+  /* Texto de card (sintaxe markdown-lite) → página de Notas */
+  function pageFromText(text) {
+    const lines = String(text || '').split('\n');
+    let title = '';
+    const blocks = [];
+    lines.forEach((line) => {
+      const todo = line.match(/^\[(x|X| )?\]\s?(.*)$/);
+      if (!title && line.indexOf('# ') === 0) {
+        title = line.slice(2).trim();
+        return;
+      }
+      if (/^---+\s*$/.test(line)) blocks.push(mkBlock('divider', ''));
+      else if (line.indexOf('## ') === 0) blocks.push(mkBlock('h2', line.slice(3)));
+      else if (line.indexOf('# ') === 0) blocks.push(mkBlock('h1', line.slice(2)));
+      else if (line.indexOf('- ') === 0) blocks.push(mkBlock('li', line.slice(2)));
+      else if (todo) {
+        blocks.push(Object.assign(mkBlock('todo', todo[2]), { checked: (todo[1] || '').toLowerCase() === 'x' }));
+      } else if (line.trim()) blocks.push(mkBlock('p', line));
+    });
+    if (!title && blocks.length && blocks[0].type === 'p') {
+      title = blocks[0].text.trim().slice(0, 60);
+      blocks.shift();
+    }
+    const page = mkPage(title);
+    if (blocks.length) page.blocks = blocks;
+    return page;
+  }
+
+  /* Página de Notas → texto de card (pra desvincular sem perder nada) */
+  function pageToText(page) {
+    const lines = [];
+    if (page.title) lines.push('# ' + page.title);
+    (page.blocks || []).forEach((b) => {
+      if (b.type === 'divider') lines.push('---');
+      else if (b.type === 'h1') lines.push('# ' + b.text);
+      else if (b.type === 'h2') lines.push('## ' + b.text);
+      else if (b.type === 'li') lines.push('- ' + b.text);
+      else if (b.type === 'todo') lines.push((b.checked ? '[x] ' : '[] ') + b.text);
+      else lines.push(b.text);
+    });
+    return lines.join('\n');
+  }
+
+  E.notes = { toggle, open, close, isOpen, openPage, refreshPage, pageFromText, pageToText };
 })();

@@ -337,21 +337,81 @@
       '<p class="settings-section-title">Integrações</p>' +
       '<p class="settings-desc">Conexões com ferramentas externas do seu fluxo de trabalho.</p>';
 
-    const ps = document.createElement('div');
-    ps.className = 'settings-block';
-    ps.innerHTML =
-      '<h4>' + E.icon('brush', 16) + '<span>Photoshop</span></h4>' +
-      '<p>O Estúdio salva imagens numa pasta vigiada e abre direto no Photoshop. ' +
-      'Se a pasta mudou de lugar, desconecte aqui e escolha de novo no próximo uso.</p>';
-    const btn = document.createElement('button');
-    btn.className = 'btn';
-    E.setLabel(btn, 'refresh', 'Reconectar pasta');
-    btn.addEventListener('click', async () => {
-      await E.db.del('handles', 'projectsDir');
-      E.ui.toast('Pasta desconectada — no próximo "Abrir no Photoshop" você escolhe de novo');
+    const desktop = E.files.desktop && E.files.desktop();
+    if (desktop) {
+      // App desktop: a pasta do Estúdio é predefinida na instalação e
+      // alterável aqui — nenhuma ação do dia a dia pergunta onde salvar.
+      const st = document.createElement('div');
+      st.className = 'settings-block';
+      st.innerHTML =
+        '<h4>' + E.icon('folder', 16) + '<span>Pasta do Estúdio</span></h4>' +
+        '<p>Tudo que você cria fica guardado aqui, organizado por projeto — ' +
+        'e abre direto no Photoshop, sem perguntar onde salvar.</p>' +
+        '<p class="mono">' + E.escapeHtml(desktop.root) + '</p>';
+      const changeBtn = document.createElement('button');
+      changeBtn.className = 'btn';
+      E.setLabel(changeBtn, 'folder', 'Alterar pasta…');
+      changeBtn.addEventListener('click', async () => {
+        const r = await E.files.chooseStudioFolder();
+        if (r) {
+          E.ui.toast('Pasta do Estúdio atualizada');
+          sectionIntegrations(content);
+        }
+      });
+      const revealBtn = document.createElement('button');
+      revealBtn.className = 'btn ghost';
+      E.setLabel(revealBtn, 'eye', 'Mostrar a pasta');
+      revealBtn.addEventListener('click', () => E.files.revealStudio());
+      st.appendChild(changeBtn);
+      st.appendChild(revealBtn);
+      content.appendChild(st);
+    } else {
+      const ps = document.createElement('div');
+      ps.className = 'settings-block';
+      ps.innerHTML =
+        '<h4>' + E.icon('brush', 16) + '<span>Photoshop</span></h4>' +
+        '<p>O Estúdio salva imagens numa pasta vigiada e abre direto no Photoshop. ' +
+        'Se a pasta mudou de lugar, desconecte aqui e escolha de novo no próximo uso.</p>';
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      E.setLabel(btn, 'refresh', 'Reconectar pasta');
+      btn.addEventListener('click', async () => {
+        await E.db.del('handles', 'projectsDir');
+        E.ui.toast('Pasta desconectada — no próximo "Abrir no Photoshop" você escolhe de novo');
+      });
+      ps.appendChild(btn);
+      content.appendChild(ps);
+    }
+
+    const ig = document.createElement('div');
+    ig.className = 'settings-block';
+    ig.innerHTML =
+      '<h4>' + E.icon('smartphone', 16) + '<span>Instagram</span></h4>' +
+      '<p>Publicação assistida: botão direito num post → "Publicar no Instagram" salva as ' +
+      'mídias na pasta do projeto, copia a legenda e abre o Instagram — é só arrastar e colar. ' +
+      'Salve seu usuário aqui pro Estúdio abrir direto no seu perfil.</p>';
+    const igRow = document.createElement('form');
+    igRow.className = 'client-add';
+    const igInput = document.createElement('input');
+    igInput.type = 'text';
+    igInput.placeholder = '@seuusuario';
+    igInput.autocomplete = 'off';
+    igInput.spellcheck = false;
+    igInput.value = E.insta.user() ? '@' + E.insta.user() : '';
+    const igBtn = document.createElement('button');
+    igBtn.type = 'submit';
+    igBtn.className = 'btn primary';
+    E.setLabel(igBtn, 'check', 'Salvar');
+    igRow.appendChild(igInput);
+    igRow.appendChild(igBtn);
+    igRow.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const clean = E.insta.setUser(igInput.value);
+      igInput.value = clean ? '@' + clean : '';
+      E.ui.toast(clean ? 'Conta @' + clean + ' vinculada' : 'Conta desvinculada');
     });
-    ps.appendChild(btn);
-    content.appendChild(ps);
+    ig.appendChild(igRow);
+    content.appendChild(ig);
   }
 
   /* Link direto do instalador no release da versão (tag v{versão} — nunca quebra

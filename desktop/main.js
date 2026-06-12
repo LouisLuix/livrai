@@ -20,7 +20,97 @@ const APP_PORT = 8788; // fixo: a "origem" (e os dados) dependem dele
 const DEV_DIR = path.join(os.homedir(), 'Desktop', 'ORGANIZADOR DE ENTREGAS');
 const liveMode = fs.existsSync(path.join(DEV_DIR, 'index.html'));
 const APP_DIR = liveMode ? DEV_DIR : path.join(__dirname, 'app');
-const WATCH_ROOT = liveMode ? DEV_DIR : path.join(app.getPath('documents'), 'Livrai');
+
+/* ---------- pasta do Estúdio ----------
+   Predefinida na instalação (Documentos/Livrai) e alterável nas
+   Configurações. O app sempre sabe onde os arquivos estão — nenhuma
+   ação pede "onde salvar?". */
+const STUDIO_CONFIG = () => path.join(app.getPath('userData'), 'livrai-studio.json');
+let mainWin = null;
+
+function defaultStudioRoot() {
+  return liveMode ? DEV_DIR : path.join(app.getPath('documents'), 'Livrai');
+}
+
+function studioConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(STUDIO_CONFIG(), 'utf8')) || {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveStudioConfig(cfg) {
+  try { fs.writeFileSync(STUDIO_CONFIG(), JSON.stringify(cfg)); } catch (_) {}
+}
+
+function studioRoot() {
+  const cfg = studioConfig();
+  if (cfg.root && fs.existsSync(cfg.root)) return cfg.root;
+  return defaultStudioRoot();
+}
+
+function projetosDir() {
+  const dir = path.join(studioRoot(), 'Projetos');
+  try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+  return dir;
+}
+
+function setStudioRoot(root) {
+  const cfg = studioConfig();
+  cfg.root = root;
+  saveStudioConfig(cfg);
+}
+
+/* Pastas do computador vinculadas a projetos: só caminhos que o usuário
+   escolheu num diálogo nativo ficam autorizados pra navegação/abertura */
+function linkedRoots() {
+  const cfg = studioConfig();
+  return Array.isArray(cfg.linkedRoots)
+    ? cfg.linkedRoots.filter((p) => typeof p === 'string')
+    : [];
+}
+
+function addLinkedRoot(p) {
+  const cfg = studioConfig();
+  const list = Array.isArray(cfg.linkedRoots) ? cfg.linkedRoots : [];
+  if (list.indexOf(p) < 0) list.push(p);
+  cfg.linkedRoots = list;
+  saveStudioConfig(cfg);
+}
+
+function isUnder(base, file) {
+  return file === base || file.startsWith(base + path.sep);
+}
+
+// caminho absoluto → só passa se estiver dentro do Estúdio ou de uma pasta vinculada
+function authorizedAbs(p) {
+  if (!p) return null;
+  const file = path.resolve(String(p));
+  const roots = [path.resolve(studioRoot())].concat(linkedRoots().map((r) => path.resolve(r)));
+  for (const r of roots) {
+    if (isUnder(r, file)) return file;
+  }
+  return null;
+}
+
+function safeSegment(s) {
+  const clean = String(s || '').replace(/[\\/:*?"<>|.]+/g, '-').trim();
+  return clean || 'projeto';
+}
+
+function safeFileName(s) {
+  const clean = String(s || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/^\.+/, '').trim();
+  return clean || 'arquivo';
+}
+
+// caminho relativo → absoluto, sempre confinado à pasta Projetos
+function resolveInProjetos(rel) {
+  const base = projetosDir();
+  const file = path.resolve(base, String(rel || ''));
+  if (file !== base && !file.startsWith(base + path.sep)) return null;
+  return file;
+}
 
 /* ---------- proxy da OpenAI (substitui o proxy.py) ---------- */
 function startProxy() {
@@ -69,6 +159,169 @@ function startProxy() {
    o login com Google passa a funcionar e o armazenamento fica estável. */
 const MIGRATION_FILE = () => path.join(app.getPath('userData'), 'livrai-migration.json');
 
+/* Endpoints locais da pasta do Estúdio (/__studio/...).
+   Sem CORS e exigindo o cabeçalho X-Livrai: só o próprio app (mesma
+   origem) consegue usar — páginas abertas no navegador não alcançam. */
+function handleStudio(req, res, u) {
+  if (req.headers['x-livrai'] !== '1') {
+    res.writeHead(403);
+    res.end();
+    return;
+  }
+  const json = (code, obj) => {
+    res.writeHead(code, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(obj));
+  };
+
+  if (u.pathname === '/__studio' && req.method === 'GET') {
+    return json(200, { root: studioRoot(), projetos: projetosDir() });
+  }
+
+  if (u.pathname === '/__studio/choose' && req.method === 'POST') {
+    dialog
+      .showOpenDialog(mainWin, {
+        title: 'Pasta do Estúdio',
+        message: 'Escolha onde o Estúdio guarda os arquivos dos projetos',
+        defaultPath: studioRoot(),
+        properties: ['openDirectory', 'createDirectory'],
+      })
+      .then((r) => {
+        if (r.canceled || !r.filePaths[0]) return json(200, { canceled: true });
+        setStudioRoot(r.filePaths[0]);
+        json(200, { root: studioRoot(), projetos: projetosDir() });
+      })
+      .catch((e) => json(500, { error: String(e) }));
+    return;
+  }
+
+  if (u.pathname === '/__studio/save' && req.method === 'POST') {
+    const proj = safeSegment(u.searchParams.get('project'));
+    const fname = safeFileName(u.searchParams.get('name'));
+    const dir = path.join(projetosDir(), proj);
+    try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+    const file = path.join(dir, fname);
+    const out = fs.createWriteStream(file);
+    req.pipe(out);
+    out.on('finish', () => {
+      try {
+        const st = fs.statSync(file);
+        json(200, { path: proj + '/' + fname, mtime: st.mtimeMs });
+      } catch (e) {
+        json(500, { error: String(e) });
+      }
+    });
+    out.on('error', (e) => json(500, { error: String(e) }));
+    return;
+  }
+
+  if (u.pathname === '/__studio/stat' && req.method === 'GET') {
+    const file = resolveInProjetos(u.searchParams.get('path'));
+    if (!file || !fs.existsSync(file)) return json(404, { error: 'não encontrado' });
+    try {
+      const st = fs.statSync(file);
+      return json(200, { mtime: st.mtimeMs, size: st.size });
+    } catch (e) {
+      return json(500, { error: String(e) });
+    }
+  }
+
+  if (u.pathname === '/__studio/file' && req.method === 'GET') {
+    const rel = u.searchParams.get('path');
+    const file = u.searchParams.get('abs') ? authorizedAbs(rel) : resolveInProjetos(rel);
+    if (!file || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': STUDIO_MIME[path.extname(file).toLowerCase()] || 'application/octet-stream' });
+    fs.createReadStream(file).pipe(res);
+    return;
+  }
+
+  // vincula uma pasta do computador (escolhida em diálogo nativo) ao Estúdio
+  if (u.pathname === '/__studio/link-folder' && req.method === 'POST') {
+    dialog
+      .showOpenDialog(mainWin, {
+        title: 'Vincular pasta ao projeto',
+        message: 'Escolha a pasta do computador que faz parte deste projeto',
+        properties: ['openDirectory', 'createDirectory'],
+      })
+      .then((r) => {
+        if (r.canceled || !r.filePaths[0]) return json(200, { canceled: true });
+        const p = r.filePaths[0];
+        addLinkedRoot(p);
+        json(200, { path: p, name: path.basename(p) });
+      })
+      .catch((e) => json(500, { error: String(e) }));
+    return;
+  }
+
+  // lista o conteúdo de uma pasta autorizada (navegação dentro do app)
+  if (u.pathname === '/__studio/browse' && req.method === 'GET') {
+    const dir = authorizedAbs(u.searchParams.get('path'));
+    if (!dir || !fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+      return json(404, { error: 'pasta não encontrada ou não vinculada' });
+    }
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (e) {
+      return json(500, { error: String(e) });
+    }
+    const out = [];
+    for (const e of entries) {
+      if (e.name.charAt(0) === '.') continue; // ocultos ficam ocultos
+      const full = path.join(dir, e.name);
+      let st = null;
+      try { st = fs.statSync(full); } catch (_) { continue; }
+      out.push({
+        name: e.name,
+        path: full,
+        dir: st.isDirectory(),
+        size: st.isDirectory() ? 0 : st.size,
+        mtime: st.mtimeMs,
+        ext: st.isDirectory() ? '' : path.extname(e.name).slice(1).toLowerCase(),
+      });
+      if (out.length >= 800) break; // pastas gigantes não travam o app
+    }
+    out.sort((a, b) => (a.dir === b.dir ? a.name.localeCompare(b.name, 'pt-BR') : a.dir ? -1 : 1));
+    return json(200, { path: dir, entries: out });
+  }
+
+  if (u.pathname === '/__studio/open' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      let payload = {};
+      try { payload = JSON.parse(body || '{}'); } catch (_) {}
+      const file = payload.abs ? authorizedAbs(payload.path) : resolveInProjetos(payload.path);
+      if (!file || !fs.existsSync(file)) return json(404, { error: 'não encontrado' });
+      if (fs.statSync(file).isDirectory()) shell.openPath(file); // pasta abre no Finder/Explorer
+      else if (payload.app === 'reveal') shell.showItemInFolder(file);
+      else if (payload.app === 'photoshop') openInPhotoshop(file);
+      else shell.openPath(file);
+      json(200, { ok: true });
+    });
+    return;
+  }
+
+  res.writeHead(404);
+  res.end();
+}
+
+const STUDIO_MIME = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.mp4': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.webm': 'video/webm',
+  '.pdf': 'application/pdf',
+};
+
 function startAppServer() {
   const MIME = {
     '.html': 'text/html; charset=utf-8',
@@ -85,6 +338,10 @@ function startAppServer() {
   const authTokens = {}; // state -> idToken (login Google feito no navegador)
   const server = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://localhost');
+    if (u.pathname.startsWith('/__studio')) {
+      handleStudio(req, res, u);
+      return;
+    }
     if (u.pathname === '/__auth') {
       const cors = { 'Access-Control-Allow-Origin': '*' };
       if (req.method === 'OPTIONS') {
@@ -258,11 +515,11 @@ function openInPhotoshop(file) {
 
 function startPhotoshopBridge() {
   try {
-    fs.mkdirSync(path.join(WATCH_ROOT, 'Projetos', '.fila'), { recursive: true });
+    fs.mkdirSync(path.join(projetosDir(), '.fila'), { recursive: true });
   } catch (_) {}
   setInterval(() => {
     const triggers = [];
-    listFilaTxt(WATCH_ROOT, 0, triggers);
+    listFilaTxt(studioRoot(), 0, triggers);
     for (const t of triggers) {
       try {
         const rel = fs.readFileSync(t, 'utf8').trim();
@@ -282,6 +539,8 @@ function createWindow() {
     title: 'Livrai',
     backgroundColor: '#0d0d10',
   });
+  mainWin = win;
+  win.on('closed', () => { if (mainWin === win) mainWin = null; });
   win.loadURL('http://localhost:' + APP_PORT + '/index.html');
   win.webContents.setWindowOpenHandler(({ url }) => {
     // o popup de login (Google/Firebase) precisa abrir DENTRO do app
