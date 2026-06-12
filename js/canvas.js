@@ -882,7 +882,7 @@
         onClick: () => pickImageForPost(it),
       });
       entries.unshift({
-        label: 'Gerar legenda com IA',
+        label: 'Gerar texto com IA (lê as imagens)',
         icon: 'sparkles',
         onClick: () => E.ai.captionPost(it),
       });

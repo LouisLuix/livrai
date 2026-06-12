@@ -1651,6 +1651,7 @@ body.kb-dragging * {
 .post-text {
   color: var(--text);
   flex: 1;
+  min-height: 40px; /* a legenda sempre tem área própria abaixo da mídia */
 }
 
 /* Editor de texto inline */
@@ -1675,6 +1676,26 @@ body.kb-dragging * {
 .item-label .item-editor {
   background: var(--panel-2);
   color: var(--text);
+}
+/* Editor da legenda do post: vive no fluxo do card, abaixo da mídia —
+   nunca cobre a imagem */
+.item-editor.editor-post {
+  position: static;
+  inset: auto;
+  flex: 1;
+  width: calc(100% - 16px);
+  height: auto;
+  min-height: 64px;
+  margin: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--panel-3);
+  color: var(--text);
+  outline: 2px solid var(--accent);
+}
+.item-editor.editor-post::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
 }
 .editor-label {
   font-family: var(--font-display);

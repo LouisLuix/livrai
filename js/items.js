@@ -810,6 +810,10 @@
 
   function textEdit(item, el, onChange) {
     if (E.state.editing) return;
+    if (item.kind === 'post') {
+      postTextEdit(item, el, onChange);
+      return;
+    }
     E.state.editing = true;
     const body = el.querySelector('.item-body');
     const ta = document.createElement('textarea');
@@ -844,6 +848,47 @@
       if (!cancelled) item.content.text = ta.value;
       ta.remove();
       body.style.visibility = '';
+      E.items.refreshBody(item, el, onChange);
+      if (!cancelled && onChange) onChange(item);
+    });
+  }
+
+  /* Post: edita SÓ a área da legenda — a mídia continua visível em cima,
+     o editor ocupa exatamente o espaço do texto (nada sobrepõe a imagem) */
+  function postTextEdit(item, el, onChange) {
+    E.state.editing = true;
+    // card baixinho com mídia: cresce pra legenda ter espaço próprio
+    if (E.items.postMedia(item.content || {}).length && item.h < 320) {
+      item.h = 360;
+      E.items.position(el, item);
+      if (onChange) onChange(item);
+    }
+    const body = el.querySelector('.item-body');
+    const textEl = body.querySelector('.post-text');
+    const ta = document.createElement('textarea');
+    ta.className = 'item-editor editor-post';
+    ta.value = (item.content && item.content.text) || '';
+    ta.placeholder = 'Legenda do post… (botão direito → Gerar texto com IA)';
+    ta.spellcheck = false;
+    if (textEl) textEl.style.display = 'none';
+    body.appendChild(ta);
+    ta.focus();
+    ta.select();
+
+    let cancelled = false;
+    ta.addEventListener('keydown', (ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Escape') {
+        cancelled = true;
+        ta.blur();
+      }
+    });
+    ta.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+    ta.addEventListener('blur', () => {
+      E.state.editing = false;
+      if (!cancelled) item.content.text = ta.value;
+      ta.remove();
+      if (textEl) textEl.style.display = '';
       E.items.refreshBody(item, el, onChange);
       if (!cancelled && onChange) onChange(item);
     });

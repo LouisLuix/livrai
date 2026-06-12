@@ -448,11 +448,17 @@
 
   /* ---------- texto com visão (a IA olha uma imagem) ---------- */
 
-  async function genVisionText(provider, prompt, system, imageBlob) {
-    if (!imageBlob) return genText(provider, prompt, system);
+  /* imageBlobs: um blob OU um array de blobs (até 4 imagens vão pra IA) */
+  async function genVisionText(provider, prompt, system, imageBlobs) {
+    const blobs = (Array.isArray(imageBlobs) ? imageBlobs : imageBlobs ? [imageBlobs] : [])
+      .filter(Boolean)
+      .slice(0, 4);
+    if (!blobs.length) return genText(provider, prompt, system);
     const s = settings();
-    const b64 = await blobToB64(imageBlob);
-    const mime = imageBlob.type || 'image/png';
+    const imgs = [];
+    for (const b of blobs) {
+      imgs.push({ b64: await blobToB64(b), mime: b.type || 'image/png' });
+    }
     if (provider === 'anthropic') {
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -469,10 +475,9 @@
           messages: [
             {
               role: 'user',
-              content: [
-                { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } },
-                { type: 'text', text: prompt },
-              ],
+              content: imgs
+                .map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.mime, data: i.b64 } }))
+                .concat([{ type: 'text', text: prompt }]),
             },
           ],
         }),
@@ -488,7 +493,11 @@
     // Gemini
     const body = {
       contents: [
-        { parts: [{ inlineData: { mimeType: mime, data: b64 } }, { text: prompt }] },
+        {
+          parts: imgs
+            .map((i) => ({ inlineData: { mimeType: i.mime, data: i.b64 } }))
+            .concat([{ text: prompt }]),
+        },
       ],
     };
     if (system) body.systemInstruction = { parts: [{ text: system }] };
@@ -977,16 +986,28 @@
       return;
     }
     const media = E.items.postMedia(item.content);
-    const firstImg = media.find((m) => m.kind !== 'video');
-    const hasImg = !!firstImg;
+    const images = media.filter((m) => m.kind !== 'video');
+    const hasImg = images.length > 0;
     const vals = await E.ui.modal({
-      title: 'Legenda pro Instagram',
+      title: 'Gerar texto do post com IA',
       message: hasImg
-        ? media.length > 1
-          ? 'A IA olha a primeira imagem do carrossel (' + media.length + ' itens) e escreve a legenda. O texto atual vira briefing e será substituído.'
-          : 'A IA olha a imagem do post e escreve a legenda. O texto atual (se houver) vira briefing e será substituído.'
-        : 'O texto atual do post vira briefing e será substituído pela legenda pronta.',
+        ? 'A IA lê ' +
+          (images.length > 1 ? 'as imagens do post (até 4)' : 'a imagem do post') +
+          ' e escreve o texto na direção que você escolher. O texto atual vira briefing e será substituído.'
+        : 'O texto atual do post vira briefing e será substituído pelo texto pronto.',
       fields: [
+        {
+          name: 'style',
+          label: 'Direção do texto',
+          type: 'select',
+          options: [
+            { value: 'viral', label: 'Viral — gancho forte, feito pra compartilhar' },
+            { value: 'vendas', label: 'Vendedor — desejo + chamada pra ação' },
+            { value: 'inspirador', label: 'Inspirador — editorial, emocional' },
+            { value: 'informativo', label: 'Informativo — direto ao ponto' },
+            { value: 'humor', label: 'Engraçado — humor leve' },
+          ],
+        },
         {
           name: 'provider',
           label: 'Com qual IA?',
@@ -995,42 +1016,57 @@
         },
         {
           name: 'hint',
-          label: 'Instruções extras (opcional)',
-          placeholder: 'tom, chamada pra ação, promoção do dia…',
+          label: 'Direcionamento extra (opcional)',
+          placeholder: 'promoção do dia, público-alvo, tom, palavra obrigatória…',
         },
       ],
-      okLabel: 'Gerar legenda',
+      okLabel: 'Gerar texto',
     });
     if (vals === null) return;
 
-    let prompt =
-      'Crie UMA legenda de Instagram pronta pra publicar' +
-      (media.length > 1
-        ? ' para um post CARROSSEL com ' + media.length + ' itens (a imagem anexada é o primeiro)'
-        : hasImg
-          ? ' para a imagem anexada'
-          : '') +
-      '. Emojis na medida certa e hashtags relevantes no final. Responda SÓ com a legenda, nada mais.';
-    if (item.content.text) prompt += '\n\nBriefing / contexto: ' + item.content.text;
-    if (vals.hint && vals.hint.trim()) prompt += '\nInstruções: ' + vals.hint.trim();
+    const STYLE = {
+      viral:
+        'Estilo VIRAL: primeira linha é um gancho irresistível (curiosidade, identificação imediata ou afirmação ousada — ela decide se a pessoa para de rolar o feed). Frases curtas, ritmo de retenção, e termina puxando comentário/compartilhamento.',
+      vendas:
+        'Estilo VENDEDOR: desperta desejo pelo que aparece na imagem, benefício concreto, urgência sutil e UMA chamada pra ação clara (comprar, pedir, chamar no direct).',
+      inspirador:
+        'Estilo INSPIRADOR/editorial: tom elegante e emocional, mini-storytelling ligado à imagem, zero clichê de coach.',
+      informativo:
+        'Estilo INFORMATIVO: claro, direto e escaneável; entrega valor concreto sobre o que está na imagem.',
+      humor:
+        'Estilo ENGRAÇADO: humor leve e esperto a partir do que está na imagem, sem piada forçada.',
+    };
 
-    let imgBlob = null;
-    if (hasImg) {
-      const rec = await E.db.get('blobs', firstImg.blobId);
-      imgBlob = rec && rec.blob ? rec.blob : null;
+    let prompt =
+      'Analise com atenção ' +
+      (images.length > 1
+        ? 'as ' + Math.min(images.length, 4) + ' imagens anexadas deste post carrossel'
+        : hasImg
+          ? 'a imagem anexada deste post'
+          : 'o briefing abaixo') +
+      ' — produto, cena, pessoas, texto que aparece na arte, clima — e crie UMA legenda de Instagram pronta pra publicar baseada nisso.\n' +
+      (STYLE[vals.style] || STYLE.viral) +
+      '\nEmojis na medida certa e hashtags relevantes no final. Escreva em português do Brasil. Responda SÓ com a legenda, nada mais.';
+    if (item.content.text) prompt += '\n\nBriefing / contexto do criador: ' + item.content.text;
+    if (vals.hint && vals.hint.trim()) prompt += '\nDirecionamento do criador (prioridade máxima): ' + vals.hint.trim();
+
+    const imgBlobs = [];
+    for (const m of images.slice(0, 4)) {
+      const rec = await E.db.get('blobs', m.blobId);
+      if (rec && rec.blob) imgBlobs.push(rec.blob);
     }
 
-    const job = jobStart('Escrevendo legenda…');
+    const job = jobStart('Escrevendo o texto do post…');
     try {
       const text = await genVisionText(
         vals.provider,
         prompt,
         textSystem(true) + brandText(currentProject()),
-        imgBlob
+        imgBlobs
       );
       item.content.text = text;
       E.canvas.refreshItem(item);
-      E.ui.toast('Legenda pronta — dois cliques no post pra ajustar');
+      E.ui.toast('Texto pronto — dois cliques no post pra ajustar');
     } catch (err) {
       console.error(err);
       E.ui.toast('⚠️ ' + (err && err.message ? err.message : 'Erro na geração'));
