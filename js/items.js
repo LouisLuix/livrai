@@ -76,6 +76,7 @@
         if (u) img.src = u;
       });
       body.appendChild(img);
+      applyAlphaLook(item, el, img);
     } else if (item.kind === 'link') {
       if (item._edit || !c.url) {
         // edição dentro do próprio card — sem popup
@@ -616,6 +617,40 @@
       });
     }
   };
+
+  /* PNG/WebP com recorte ficam SEM fundo nem sombra no canvas — a
+     transparência aparece de verdade. Detecta o alpha uma vez e guarda. */
+  function applyAlphaLook(item, el, img) {
+    const c = item.content || {};
+    if (c.hasAlpha === true) {
+      el.classList.add('item-transparent');
+      return;
+    }
+    if (c.hasAlpha === false) return;
+    img.addEventListener('load', function once() {
+      img.removeEventListener('load', once);
+      try {
+        const cv = document.createElement('canvas');
+        cv.width = 64;
+        cv.height = 64;
+        const g = cv.getContext('2d', { willReadFrequently: true });
+        g.drawImage(img, 0, 0, 64, 64);
+        const d = g.getImageData(0, 0, 64, 64).data;
+        let alpha = false;
+        for (let i = 3; i < d.length; i += 4) {
+          if (d[i] < 250) {
+            alpha = true;
+            break;
+          }
+        }
+        item.content.hasAlpha = alpha;
+        E.db.put('items', item);
+        if (alpha) el.classList.add('item-transparent');
+      } catch (_) {
+        /* imagem indecodificável — mantém o card normal */
+      }
+    });
+  }
 
   /* ---------- arquivos genéricos (PDF, Office…) ---------- */
 

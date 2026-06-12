@@ -1363,6 +1363,23 @@ body.kb-dragging * {
 .file-open {
   margin-top: auto;
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.file-open:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* ===== Explorador de pastas vinculadas ===== */
@@ -1606,6 +1623,17 @@ body.kb-dragging * {
   object-fit: cover;
   display: block;
   pointer-events: none;
+}
+/* PNG/WebP com recorte: transparência de verdade no canvas */
+.item-image.item-transparent {
+  box-shadow: none;
+}
+.item-image.item-transparent .item-body {
+  background: transparent;
+  border: none;
+}
+.item-image.item-transparent img {
+  object-fit: contain;
 }
 
 /* Link */
