@@ -72,6 +72,14 @@
   let seq = 0;
   let layout = localStorage.getItem('livrai-term-layout') || 'tabs'; // 'tabs' | 'split'
 
+  /* Insere texto na sessão ativa (usado pelo ditado por voz) */
+  E.terminal.sendText = function (text) {
+    if (!active || !active.alive || active.sessId == null || !text) return false;
+    native().input(active.sessId, text);
+    if (active.term) active.term.focus();
+    return true;
+  };
+
   E.terminal.render = async function (container) {
     if (!built) {
       built = true;

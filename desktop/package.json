@@ -1,7 +1,7 @@
 {
   "name": "livrai",
   "productName": "Livrai",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "LIVRAI — Estúdio: organizador visual de entregas para quem dirige criação",
   "author": "Luis Gustavo Felix (@luisluix)",
   "main": "main.js",
@@ -62,7 +62,10 @@
       "identity": null,
       "artifactName": "Livrai-${version}-macOS-${arch}.${ext}",
       "category": "public.app-category.productivity",
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "O LIVRAI usa o microfone para o ditado por voz (transcrição de fala em texto)."
+      }
     }
   }
 }

@@ -15,6 +15,8 @@
     compass:
       '<circle cx="12" cy="12" r="8.5"/><path d="m15.6 8.4-1.9 5.3-5.3 1.9 1.9-5.3z"/>',
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/>',
+    keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 9.5h.01M9.5 9.5h.01M13 9.5h.01M16.5 9.5h.01M6 13h.01M18 13h.01M9 13h6"/>',
     check: '<path d="M5 12.5 10 17.5 19 7"/>',
     alert: '<path d="M12 3 2.5 20h19z"/><path d="M12 9.5v5M12 17.2v.3"/>',
     more: '<circle cx="5.5" cy="12" r="1.1"/><circle cx="12" cy="12" r="1.1"/><circle cx="18.5" cy="12" r="1.1"/>',

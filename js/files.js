@@ -420,6 +420,17 @@
     if (!r.ok) throw new Error('não consegui abrir');
   };
 
+  /* Preview de link externo: metadados Open Graph (título, descrição, imagem) */
+  E.files.unfurl = async function (url) {
+    try {
+      const r = await fetch('/__studio/unfurl?u=' + encodeURIComponent(url), { headers: HD });
+      if (!r.ok) return null;
+      return await r.json();
+    } catch (_) {
+      return null;
+    }
+  };
+
   /* Lê os bytes de um arquivo autorizado (pra importar pro canvas) */
   E.files.readPath = async function (absPath) {
     const r = await fetch('/__studio/file?abs=1&path=' + encodeURIComponent(absPath), { headers: HD });

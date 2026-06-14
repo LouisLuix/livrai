@@ -114,28 +114,7 @@
         body.appendChild(ui);
         body.appendChild(ok);
       } else {
-        let host = '';
-        try {
-          host = new URL(c.url).hostname.replace(/^www\./, '');
-        } catch (_) {
-          host = '';
-        }
-        const title = document.createElement('div');
-        title.className = 'link-title';
-        title.textContent = c.title || host || c.url || 'Link';
-        const dom = document.createElement('div');
-        dom.className = 'link-domain';
-        dom.textContent = host || c.url || '';
-        const open = document.createElement('button');
-        open.type = 'button';
-        open.className = 'item-action link-open';
-        E.setLabel(open, 'arrow-up-right', 'Abrir');
-        open.addEventListener('click', () => {
-          if (c.url) window.open(c.url, '_blank', 'noopener');
-        });
-        body.appendChild(title);
-        body.appendChild(dom);
-        body.appendChild(open);
+        renderLinkPreview(item, body, el, onChange);
       }
     } else if (item.kind === 'color') {
       const hex = c.hex || '#a78bfa';
@@ -958,4 +937,121 @@
     return u;
   }
   E.items.normalizeUrl = normalizeUrl;
+
+  /* ---------- preview de link (Open Graph + player do YouTube) ---------- */
+
+  function youtubeId(url) {
+    try {
+      const u = new URL(url);
+      const h = u.hostname.replace(/^www\./, '');
+      if (h === 'youtu.be') return u.pathname.slice(1).split('/')[0] || null;
+      if (h === 'youtube.com' || h === 'm.youtube.com' || h.endsWith('.youtube.com')) {
+        if (u.pathname === '/watch') return u.searchParams.get('v');
+        const m = u.pathname.match(/^\/(embed|shorts|live|v)\/([^/?]+)/);
+        if (m) return m[2];
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function renderLinkPreview(item, body, el, onChange) {
+    const c = item.content || {};
+    body.classList.add('link-rich');
+    let host = '';
+    try { host = new URL(c.url).hostname.replace(/^www\./, ''); } catch (_) {}
+    const yt = youtubeId(c.url);
+    const p = c.preview || {};
+
+    // card pequeno (padrão) ganha tamanho de preview quando há mídia
+    if ((yt || p.image) && item.w <= 240 && item.h <= 130) {
+      item.w = 320;
+      item.h = 300;
+      E.items.position(el, item);
+      if (onChange) onChange(item);
+    }
+
+    // área visual: player do YouTube (facade) ou thumbnail Open Graph
+    if (yt) {
+      const media = document.createElement('div');
+      media.className = 'link-media link-yt';
+      const img = document.createElement('img');
+      img.alt = '';
+      img.draggable = false;
+      img.src = 'https://i.ytimg.com/vi/' + yt + '/hqdefault.jpg';
+      img.addEventListener('error', () => { img.src = 'https://i.ytimg.com/vi/' + yt + '/mqdefault.jpg'; });
+      const play = document.createElement('button');
+      play.type = 'button';
+      play.className = 'link-play';
+      play.innerHTML = E.icon('film', 22);
+      play.title = 'Reproduzir aqui';
+      play.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const f = document.createElement('iframe');
+        f.className = 'link-iframe';
+        f.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture; fullscreen');
+        f.setAttribute('allowfullscreen', '');
+        f.src = 'https://www.youtube-nocookie.com/embed/' + yt + '?autoplay=1&rel=0';
+        media.innerHTML = '';
+        media.appendChild(f);
+      });
+      media.appendChild(img);
+      media.appendChild(play);
+      body.appendChild(media);
+    } else if (p.image) {
+      const media = document.createElement('div');
+      media.className = 'link-media';
+      const img = document.createElement('img');
+      img.alt = '';
+      img.draggable = false;
+      img.src = p.image;
+      img.addEventListener('error', () => media.remove());
+      media.appendChild(img);
+      body.appendChild(media);
+    }
+
+    // texto: título, domínio, descrição
+    const meta = document.createElement('div');
+    meta.className = 'link-meta';
+    const title = document.createElement('div');
+    title.className = 'link-title';
+    title.textContent = c.title || p.title || host || c.url || 'Link';
+    meta.appendChild(title);
+    const dom = document.createElement('div');
+    dom.className = 'link-domain';
+    dom.textContent = (p.siteName ? p.siteName + ' · ' : '') + (host || c.url || '');
+    meta.appendChild(dom);
+    if (p.description) {
+      const desc = document.createElement('div');
+      desc.className = 'link-desc';
+      desc.textContent = p.description;
+      meta.appendChild(desc);
+    }
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'item-action link-open';
+    E.setLabel(open, 'arrow-up-right', 'Abrir');
+    open.addEventListener('click', () => { if (c.url) window.open(c.url, '_blank', 'noopener'); });
+    meta.appendChild(open);
+    body.appendChild(meta);
+
+    // busca os metadados uma vez (desktop) e re-renderiza
+    if (!c.preview && !item._unfurling && c.url && E.files && E.files.unfurl) {
+      item._unfurling = true;
+      (async () => {
+        try {
+          if (!(await E.files.isDesktop())) { item._unfurling = false; return; }
+          const m = await E.files.unfurl(c.url);
+          item.content.preview = m
+            ? { title: m.title || '', description: m.description || '', image: m.image || '', siteName: m.siteName || '', type: m.type || '' }
+            : {};
+          if (!item.content.title && m && m.title) item.content.title = m.title;
+          item._unfurling = false;
+          if (onChange) onChange(item);
+          E.items.refreshBody(item, el, onChange);
+        } catch (_) {
+          item._unfurling = false;
+        }
+      })();
+    }
+  }
 })();

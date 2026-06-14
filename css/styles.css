@@ -2860,6 +2860,73 @@ body.panel-resizing {
   background: var(--accent);
   color: var(--accent-ink);
 }
+/* preview rico de link (Open Graph / YouTube) */
+.item-link .item-body.link-rich {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+.link-media {
+  position: relative;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 90px;
+  background: #0b0b0e;
+  overflow: hidden;
+}
+.link-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.link-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.link-play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 92, 38, 0.92);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform var(--t-fast);
+}
+.link-play:hover {
+  transform: scale(1.08);
+}
+.link-meta {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 13px;
+}
+.link-meta .link-desc {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.link-meta .link-open {
+  margin-top: 6px;
+}
+
 .item-body.link-editing {
   gap: 7px;
 }
@@ -5656,4 +5723,170 @@ input.post-date:hover {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ===== Ditado por voz (Whisper) ===== */
+#dictate-pill {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%) translateY(8px);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 16px;
+  background: rgba(22, 22, 25, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--line-strong);
+  border-radius: 99px;
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+#dictate-pill.show {
+  display: flex;
+  animation: menu-in var(--t-fast) var(--ease) both;
+}
+#dictate-pill .ic {
+  color: var(--accent);
+}
+#dictate-pill.rec .ic {
+  animation: dictate-pulse 1s ease-in-out infinite;
+}
+@keyframes dictate-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ===== Atalhos: tela de ajuda ===== */
+.shortcuts-modal {
+  width: min(680px, calc(100vw - 48px));
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 22px;
+  gap: 16px;
+}
+.shortcuts-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.shortcuts-head h2 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  flex: 1;
+}
+.shortcuts-head .ic {
+  color: var(--accent);
+}
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 28px;
+  overflow-y: auto;
+}
+.shortcuts-sec-title {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 6px 0 4px;
+}
+.shortcuts-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+}
+.shortcuts-desc {
+  font-size: 13.5px;
+  color: var(--text);
+}
+.shortcuts-key {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  .shortcuts-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== Configurações → Atalhos ===== */
+.sc-block h4 {
+  margin-bottom: 6px;
+}
+.sc-set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+.sc-set-row:first-of-type {
+  border-top: none;
+}
+.sc-set-desc {
+  font-size: 13.5px;
+  color: var(--text);
+}
+.sc-set-key {
+  flex-shrink: 0;
+  min-width: 76px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 5px 10px;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+}
+button.sc-set-key:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.sc-set-key.recording {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255, 92, 38, 0.1);
+}
+.sc-set-key.fixed {
+  color: var(--muted);
+  opacity: 0.8;
+}
+.shortcuts-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+  text-align: center;
+}
+
+/* botão de microfone (ditado) — estado ativo bem visível */
+#btn-mic.mic-rec {
+  color: #fff;
+  background: var(--accent);
+}
+#btn-mic.mic-rec .ic {
+  animation: dictate-pulse 1s ease-in-out infinite;
+}
+#btn-mic.mic-busy {
+  color: var(--accent);
+}
+#btn-mic.mic-busy .ic {
+  animation: dictate-pulse 1.2s ease-in-out infinite;
 }

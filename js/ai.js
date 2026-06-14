@@ -159,6 +159,29 @@
     }
   }
 
+  /* ---------- TRANSCRIÇÃO (ditado por voz, Whisper) ---------- */
+  E.ai.transcribe = async function (blob, lang) {
+    const s = settings();
+    if (!s.keys.openai) {
+      const err = new Error('sem-chave');
+      err.code = 'no-key';
+      throw err;
+    }
+    const fd = new FormData();
+    fd.append('file', blob, 'ditado.webm');
+    fd.append('model', 'whisper-1');
+    if (lang) fd.append('language', lang);
+    // sem Content-Type manual: o FormData define o boundary sozinho
+    const r = await openaiFetch('/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + s.keys.openai },
+      body: fd,
+    });
+    if (!r.ok) throw new Error(await errText(r));
+    const data = await r.json();
+    return String(data.text || '').trim();
+  };
+
   /* ---------- TEXTO ---------- */
 
   async function genTextAnthropic(prompt, system) {

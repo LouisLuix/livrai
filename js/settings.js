@@ -9,6 +9,7 @@
     { id: 'ai', label: 'IA & Identidade', icon: 'sparkles' },
     { id: 'backup', label: 'Backup', icon: 'database' },
     { id: 'integrations', label: 'Integrações', icon: 'brush' },
+    { id: 'shortcuts', label: 'Atalhos', icon: 'keyboard' },
     { id: 'news', label: 'Novidades', icon: 'star' },
     { id: 'updates', label: 'Atualizações', icon: 'refresh' },
     { id: 'about', label: 'Licença', icon: 'logo' },
@@ -622,11 +623,98 @@
       '</div>';
   }
 
+  function sectionShortcuts(content) {
+    let capturing = null;
+
+    function render() {
+      content.innerHTML =
+        '<p class="settings-section-title">Atalhos</p>' +
+        '<p class="settings-desc">Teclas de uma letra valem no canvas e fora de campos de texto; ' +
+        'combinações com Cmd/Ctrl valem em qualquer lugar. Clique numa tecla pra remapear (Esc cancela).</p>';
+
+      const head = document.createElement('div');
+      head.className = 'settings-block';
+      const reset = document.createElement('button');
+      reset.className = 'btn ghost';
+      E.setLabel(reset, 'refresh', 'Restaurar padrão');
+      reset.addEventListener('click', () => {
+        if (E.shortcuts && E.shortcuts.resetAll) E.shortcuts.resetAll();
+        E.ui.toast('Atalhos restaurados');
+        render();
+      });
+      head.appendChild(reset);
+      content.appendChild(head);
+
+      const list = (E.shortcuts && E.shortcuts.all && E.shortcuts.all()) || [];
+      const groups = {};
+      list.forEach((s) => {
+        (groups[s.group] = groups[s.group] || []).push(s);
+      });
+
+      Object.keys(groups).forEach((g) => {
+        const sec = document.createElement('div');
+        sec.className = 'settings-block sc-block';
+        const h = document.createElement('h4');
+        h.innerHTML = '<span>' + E.escapeHtml(g) + '</span>';
+        sec.appendChild(h);
+        groups[g].forEach((s) => {
+          const row = document.createElement('div');
+          row.className = 'sc-set-row';
+          const d = document.createElement('span');
+          d.className = 'sc-set-desc';
+          d.textContent = s.desc;
+          row.appendChild(d);
+          if (s.editable) {
+            const btn = document.createElement('button');
+            btn.className = 'sc-set-key' + (capturing === s.id ? ' recording' : '');
+            btn.textContent = capturing === s.id ? 'Pressione…' : s.combo;
+            btn.title = 'Clique e pressione a nova combinação';
+            btn.addEventListener('click', () => startCapture(s.id, btn));
+            row.appendChild(btn);
+          } else {
+            const fixed = document.createElement('span');
+            fixed.className = 'sc-set-key fixed';
+            fixed.textContent = s.combo;
+            fixed.title = 'Atalho fixo';
+            row.appendChild(fixed);
+          }
+          sec.appendChild(row);
+        });
+        content.appendChild(sec);
+      });
+    }
+
+    function startCapture(id, btn) {
+      capturing = id;
+      btn.textContent = 'Pressione…';
+      btn.classList.add('recording');
+      const onKey = (e) => {
+        if (e.key === 'Shift' || e.key === 'Meta' || e.key === 'Control' || e.key === 'Alt') return;
+        e.preventDefault();
+        e.stopPropagation();
+        window.removeEventListener('keydown', onKey, true);
+        capturing = null;
+        if (e.key === 'Escape') {
+          render();
+          return;
+        }
+        const conflict = E.shortcuts.conflict(id, e);
+        const label = E.shortcuts.setBindingFromEvent(id, e);
+        if (label) E.ui.toast(conflict ? 'Atenção: "' + conflict + '" usa o mesmo atalho' : 'Atalho atualizado');
+        render();
+      };
+      window.addEventListener('keydown', onKey, true);
+    }
+
+    render();
+  }
+
   const RENDERERS = {
     clients: sectionClients,
     ai: sectionAi,
     backup: sectionBackup,
     integrations: sectionIntegrations,
+    shortcuts: sectionShortcuts,
     news: (content) => E.news.renderSection(content),
     updates: sectionUpdates,
     about: sectionAbout,

@@ -9,6 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const http = require('http');
 const https = require('https');
+const crypto = require('crypto');
 const { exec, execFile, spawn } = require('child_process');
 
 // O login "Continuar com o Google" dos sites (Pinterest etc.) usa FedCM,
@@ -163,6 +164,52 @@ function startProxy() {
    Servir por http://localhost (em vez de file://) dá ao app uma origem real:
    o login com Google passa a funcionar e o armazenamento fica estável. */
 const MIGRATION_FILE = () => path.join(app.getPath('userData'), 'livrai-migration.json');
+
+/* ---------- preview de links (Open Graph) ---------- */
+function decodeEntities(s) {
+  return String(s || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .trim();
+}
+function metaContent(html, prop) {
+  const esc = prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('<meta[^>]+(?:property|name)=["\']' + esc + '["\'][^>]*>', 'i');
+  const m = html.match(re);
+  if (!m) return '';
+  const cm = m[0].match(/content=["\']([^"\']*)["\']/i);
+  return cm ? decodeEntities(cm[1]) : '';
+}
+function parseLinkMeta(finalUrl, html) {
+  const head = html.slice(0, 600000);
+  const pick = (props) => {
+    for (const p of props) {
+      const v = metaContent(head, p);
+      if (v) return v;
+    }
+    return '';
+  };
+  let title = pick(['og:title', 'twitter:title']);
+  if (!title) {
+    const t = head.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    title = t ? decodeEntities(t[1]) : '';
+  }
+  let image = pick(['og:image:secure_url', 'og:image:url', 'og:image', 'twitter:image', 'twitter:image:src']);
+  if (image) { try { image = new URL(image, finalUrl).href; } catch (_) {} }
+  return {
+    url: finalUrl,
+    title: title,
+    description: pick(['og:description', 'twitter:description', 'description']),
+    image: image,
+    siteName: pick(['og:site_name', 'application-name']),
+    type: pick(['og:type']),
+  };
+}
 
 /* Endpoints locais da pasta do Estúdio (/__studio/...).
    Sem CORS e exigindo o cabeçalho X-Livrai: só o próprio app (mesma
@@ -341,6 +388,50 @@ function handleStudio(req, res, u) {
         up.on('end', () => res.end());
       });
       r2.on('error', () => json(502, { error: 'falha na rede' }));
+    };
+    get(target, 0);
+    return;
+  }
+
+  // preview de link: busca o HTML e extrai os metadados (Open Graph)
+  if (u.pathname === '/__studio/unfurl' && req.method === 'GET') {
+    const target = String(u.searchParams.get('u') || '');
+    if (!/^https?:\/\//i.test(target)) return json(400, { error: 'url inválida' });
+    const MAXH = 600 * 1024;
+    let done = false;
+    const finish = (finalUrl, html) => {
+      if (done) return;
+      done = true;
+      try { json(200, parseLinkMeta(finalUrl, html)); } catch (_) { json(200, { url: finalUrl }); }
+    };
+    const get = (url, depth) => {
+      if (depth > 5) return json(502, { error: 'redirecionamentos demais' });
+      const mod = url.indexOf('https:') === 0 ? https : http;
+      const r2 = mod.get(
+        url,
+        { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LivraiBot/1.0)', 'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8' }, timeout: 15000 },
+        (up) => {
+          if (up.statusCode >= 301 && up.statusCode <= 308 && up.headers.location) {
+            up.resume();
+            return get(new URL(up.headers.location, url).href, depth + 1);
+          }
+          const ctype = up.headers['content-type'] || '';
+          if (up.statusCode !== 200 || ctype.indexOf('text/html') < 0) {
+            up.resume();
+            return finish(url, ''); // sem HTML: sem preview (cliente usa o domínio)
+          }
+          let html = '';
+          up.setEncoding('utf8');
+          up.on('data', (c) => {
+            html += c;
+            if (html.length > MAXH) up.destroy(); // já pegamos o <head>
+          });
+          up.on('end', () => finish(url, html));
+          up.on('close', () => finish(url, html));
+        }
+      );
+      r2.on('error', () => finish(target, ''));
+      r2.on('timeout', () => { r2.destroy(); finish(target, ''); });
     };
     get(target, 0);
     return;
@@ -795,6 +886,18 @@ function loadDriveClient() {
 }
 const DRIVE_CLIENT = loadDriveClient();
 const driveConfigured = () => !!(DRIVE_CLIENT.id && DRIVE_CLIENT.secret);
+
+// PKCE: protege o código de autorização contra interceptação. O verifier de
+// cada fluxo fica guardado por "state" até o callback trocar o código por token.
+const pkceStore = {};
+function b64url(buf) {
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function newPkce(state) {
+  const verifier = b64url(crypto.randomBytes(32));
+  pkceStore[state] = verifier;
+  return b64url(crypto.createHash('sha256').update(verifier).digest());
+}
 const DRIVE_FILE = () => path.join(app.getPath('userData'), 'livrai-drive.bin');
 let driveAuthWin = null;
 
@@ -909,11 +1012,13 @@ async function driveUpload(token, folderId, name, buf, mime) {
 
 function startDriveAuth() {
   const redirect = 'http://127.0.0.1:' + APP_PORT + '/__gauth';
+  const challenge = newPkce('drive');
   const url =
     'https://accounts.google.com/o/oauth2/v2/auth?client_id=' + encodeURIComponent(DRIVE_CLIENT.id) +
     '&redirect_uri=' + encodeURIComponent(redirect) +
     '&response_type=code&scope=' + encodeURIComponent('https://www.googleapis.com/auth/drive.file') +
-    '&access_type=offline&prompt=consent&state=drive';
+    '&access_type=offline&prompt=consent&state=drive' +
+    '&code_challenge=' + encodeURIComponent(challenge) + '&code_challenge_method=S256';
   // navegador EXTERNO: quem já está logado no Google só confirma com 1 clique
   shell.openExternal(url);
 }
@@ -928,12 +1033,15 @@ async function handleGAuth(req, res, u) {
   if (driveAuthWin) { setTimeout(() => { try { driveAuthWin.close(); } catch (_) {} }, 900); }
   if (!code) return;
   try {
+    const verifier = pkceStore[state] || '';
+    delete pkceStore[state];
     const body =
       'code=' + encodeURIComponent(code) +
       '&client_id=' + encodeURIComponent(DRIVE_CLIENT.id) +
       '&client_secret=' + encodeURIComponent(DRIVE_CLIENT.secret) +
       '&redirect_uri=' + encodeURIComponent('http://127.0.0.1:' + APP_PORT + '/__gauth') +
-      '&grant_type=authorization_code';
+      '&grant_type=authorization_code' +
+      (verifier ? '&code_verifier=' + encodeURIComponent(verifier) : '');
     const r = await httpsJson('https://oauth2.googleapis.com/token', {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     }, body);
@@ -1000,11 +1108,13 @@ async function calToken() {
 
 function startCalAuth() {
   const redirect = 'http://127.0.0.1:' + APP_PORT + '/__gauth';
+  const challenge = newPkce('calendar');
   const url =
     'https://accounts.google.com/o/oauth2/v2/auth?client_id=' + encodeURIComponent(DRIVE_CLIENT.id) +
     '&redirect_uri=' + encodeURIComponent(redirect) +
     '&response_type=code&scope=' + encodeURIComponent('https://www.googleapis.com/auth/calendar.readonly') +
-    '&access_type=offline&prompt=consent&state=calendar';
+    '&access_type=offline&prompt=consent&state=calendar' +
+    '&code_challenge=' + encodeURIComponent(challenge) + '&code_challenge_method=S256';
   shell.openExternal(url);
 }
 
@@ -1155,6 +1265,12 @@ app.on('quit', () => {
 });
 
 app.whenReady().then(async () => {
+  // libera o microfone (ditado por voz) na camada web; no macOS o sistema
+  // ainda pede confirmação na primeira vez
+  try {
+    const { session } = require('electron');
+    session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(true));
+  } catch (_) {}
   startProxy();
   startAppServer();
   startPhotoshopBridge();
