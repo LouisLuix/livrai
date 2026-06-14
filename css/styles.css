@@ -60,7 +60,12 @@
 
 html,
 body {
-  height: 100%;
+  /* casca fixa: topbar + abas de projeto no topo, conteúdo rolável embaixo */
+  --page-pad: clamp(20px, 5vw, 88px);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
@@ -195,33 +200,159 @@ button .ic {
 
 #gallery-view {
   --page-pad: clamp(20px, 5vw, 88px);
-  min-height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 0 var(--page-pad) 120px;
 }
 
-/* ---- topbar ---- */
+/* ---- topbar (casca fixa) ---- */
 
 #topbar {
-  position: sticky;
-  top: 0;
+  position: relative; /* z-index acima do Universo, que é fixed (z30) */
   z-index: 40;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  /* sangra até as bordas da janela — a barra preenche tudo */
-  margin: 0 calc(-1 * var(--page-pad)) 8px;
-  padding: 18px var(--page-pad) 16px;
-  background: linear-gradient(var(--bg) 72%, transparent);
+  padding: 16px var(--page-pad) 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
 }
-#topbar::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 6px;
-  height: 1px;
-  background: var(--line);
+
+/* ---- abas de projetos abertos ---- */
+
+#project-tabs {
+  position: relative;
+  z-index: 40;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px var(--page-pad);
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+#project-tabs.hidden {
+  display: none !important;
+}
+.proj-tabs-list {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.proj-tabs-list::-webkit-scrollbar {
+  display: none;
+}
+.proj-tabs-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--faint);
+  background: transparent;
+  opacity: 0.6;
+  transition: color var(--t-fast), opacity var(--t-fast), background var(--t-fast);
+}
+.proj-tabs-toggle:hover {
+  color: var(--text);
+  opacity: 1;
+  background: var(--panel);
+}
+.proj-tabs-toggle.up .ic {
+  transform: rotate(180deg);
+}
+/* recolhido: vira uma tira fininha, quase imperceptível, só a setinha */
+#project-tabs.collapsed {
+  padding: 0;
+  justify-content: center;
+  border-bottom-color: transparent;
+}
+#project-tabs.collapsed .proj-tabs-list {
+  display: none;
+}
+#project-tabs.collapsed .proj-tabs-toggle {
+  width: 100%;
+  height: 12px;
+  border-radius: 0;
+  opacity: 0.35;
+}
+#project-tabs.collapsed .proj-tabs-toggle:hover {
+  opacity: 0.9;
+  background: var(--bg-soft);
+}
+.proj-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  max-width: 220px;
+  padding: 6px 8px 6px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 99px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: color var(--t-fast), background var(--t-fast), border-color var(--t-fast);
+}
+.proj-tab:hover {
+  color: var(--text);
+  background: var(--panel);
+}
+.proj-tab.active {
+  color: var(--text);
+  background: var(--panel-3);
+  border-color: var(--line-strong);
+}
+.proj-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  opacity: 0.35;
+  transition: opacity var(--t-fast);
+}
+.proj-tab.active .proj-tab-dot {
+  opacity: 1;
+}
+.proj-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proj-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--faint);
+  flex-shrink: 0;
+}
+.proj-tab-close:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+/* dentro de um projeto, o seletor de visão não finge estar "ativo" */
+body.in-project #view-switch .view-thumb {
+  opacity: 0;
+}
+body.in-project #view-switch .view-btn.active {
+  color: var(--muted);
 }
 
 .topbar-brand {
@@ -358,6 +489,18 @@ button .ic {
   border: 1px solid var(--line-strong);
   transition: left var(--t-med) var(--ease), width var(--t-med) var(--ease);
   pointer-events: none;
+}
+/* seta do dropdown de visualização (Universo / Grade / Kanban) */
+.view-caret {
+  display: inline-flex;
+  align-items: center;
+  margin-left: -2px;
+  opacity: 0.55;
+  transition: opacity var(--t-fast);
+}
+.view-btn:hover .view-caret,
+.view-btn.active .view-caret {
+  opacity: 0.9;
 }
 
 /* ---- hero ---- */
@@ -985,8 +1128,8 @@ body.kb-dragging * {
    ============================================================ */
 
 #canvas-view {
-  position: fixed;
-  inset: 0;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   animation: fade-in var(--t-med) var(--ease) both;
@@ -1023,6 +1166,89 @@ body.kb-dragging * {
 .title-input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* Configurações do projeto: popover com nome + fase */
+.project-pop {
+  position: fixed;
+  z-index: 120;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px;
+  background: rgba(22, 22, 25, 0.94);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  animation: menu-in var(--t-fast) var(--ease) both;
+}
+.project-pop.hidden {
+  display: none !important;
+}
+.project-pop-label {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.project-pop-label:not(:first-child) {
+  margin-top: 8px;
+}
+.project-pop .title-input {
+  width: 100%;
+  border-color: var(--line);
+  font-size: 15px;
+}
+.project-pop-stage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.project-pop-stage #stage-select {
+  flex: 1;
+}
+.project-pop-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 0;
+}
+.project-pop-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.project-pop-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 9px;
+  transition: background var(--t-fast);
+}
+.project-pop-action .ic {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.project-pop-action:hover {
+  background: var(--panel-3);
+}
+.project-pop-action:hover .ic {
+  color: var(--accent);
+}
+.project-pop-action.danger {
+  color: var(--danger);
+}
+.project-pop-action.danger .ic {
+  color: var(--danger);
 }
 
 .sep {
@@ -1514,6 +1740,77 @@ body.kb-dragging * {
   padding: 40px 0;
 }
 
+/* ===== Explorar: dropdown rápido ancorado no botão ===== */
+.explorer-dd {
+  position: fixed;
+  z-index: 120;
+  width: min(380px, calc(100vw - 16px));
+  max-height: min(440px, calc(100vh - 24px));
+  display: flex;
+  flex-direction: column;
+  background: rgba(22, 22, 25, 0.94);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 8px;
+  gap: 6px;
+  animation: menu-in var(--t-fast) var(--ease) both;
+}
+.explorer-dd-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 2px 6px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.explorer-dd-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+}
+.explorer-dd-crumb {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.explorer-dd-crumb:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+.explorer-dd-crumb.current {
+  color: var(--text);
+  font-weight: 600;
+  cursor: default;
+}
+.explorer-dd-expand {
+  flex: none;
+}
+.explorer-dd-list {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.explorer-dd-empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 28px 0;
+  font-size: 13px;
+}
+
 /* ===== Compartilhamento de decks ===== */
 .share-modal {
   display: flex;
@@ -1687,7 +1984,7 @@ body.kb-dragging * {
 }
 
 /* ===== Agenda geral ===== */
-.agenda-modal {
+.modal.agenda-modal {
   width: min(1060px, calc(100vw - 50px));
   height: min(720px, calc(100vh - 60px));
   display: flex;
@@ -1773,6 +2070,52 @@ body.kb-dragging * {
   white-space: nowrap;
   max-width: 100%;
 }
+/* eventos externos (Google Calendar): borda tracejada pra distinguir dos posts */
+.agenda-chip.ext {
+  border-left-style: dashed;
+  background: color-mix(in srgb, var(--c) 10%, var(--panel-2));
+}
+.agenda-chip.ext:hover {
+  background: color-mix(in srgb, var(--c) 20%, var(--panel-2));
+}
+
+/* controle de conexão com o Google Calendar no cabeçalho */
+.agenda-cal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--muted);
+  font-size: 12px;
+  max-width: 240px;
+}
+.agenda-cal.on .ic {
+  color: var(--accent);
+}
+.agenda-cal > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agenda-cal-off {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--faint);
+  flex-shrink: 0;
+}
+.agenda-cal-off:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
+.agenda-cal-connect {
+  white-space: nowrap;
+}
 
 /* ===== Versões da imagem ===== */
 .versions-modal {
@@ -1837,7 +2180,7 @@ body.kb-dragging * {
 /* ===== Chat (4ª visão da home) ===== */
 #gallery-view.chat-mode {
   overflow: hidden;
-  height: 100vh;
+  height: 100%;
   padding-bottom: 0;
 }
 #gallery-view.chat-mode #gallery-header,
@@ -1848,7 +2191,7 @@ body.kb-dragging * {
 #chat-view {
   display: flex;
   gap: 0;
-  height: calc(100vh - 88px);
+  height: 100%;
   border: 1px solid var(--line);
   border-radius: 16px;
   overflow: hidden;
@@ -2067,7 +2410,7 @@ body.kb-dragging * {
 #browser-view {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 88px);
+  height: 100%;
   border: 1px solid var(--line);
   border-radius: 16px;
   overflow: hidden;
@@ -2260,6 +2603,68 @@ body.kb-dragging * {
   font-size: 11.5px;
   padding: 7px 16px;
   pointer-events: none;
+}
+
+/* Durante o arrasto da divisão, a página embutida não captura o mouse */
+body.panel-resizing webview,
+body.panel-resizing iframe,
+body.panel-resizing video {
+  pointer-events: none !important;
+}
+body.panel-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+/* alça da divisão mais visível e fácil de pegar */
+#browser-panel .panel-resizer,
+#chat-panel .panel-resizer {
+  width: 10px;
+  cursor: col-resize;
+}
+#browser-panel .panel-resizer:hover,
+#chat-panel .panel-resizer:hover {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Navegador e Chat como painéis DENTRO do projeto (tela dividida) */
+#browser-panel {
+  width: 560px;
+}
+#chat-panel {
+  width: 470px;
+}
+#browser-panel .panel-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+#chat-panel .panel-content {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+#chat-panel .chat-side {
+  display: none; /* no painel vale a conversa atual — histórico fica na home */
+}
+.browser-target-locked {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  font-size: 11px;
+  width: auto;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#browser-panel .browser-savelink span,
+#browser-panel .browser-shot span {
+  display: none; /* painel estreito: só os ícones */
 }
 
 .browser-only-desktop {
@@ -2759,6 +3164,33 @@ body.kb-dragging * {
 .ctx-menu button.danger .ic {
   color: var(--danger);
 }
+.ctx-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 5px 8px;
+}
+.ctx-header {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 11px 4px;
+  font-weight: 600;
+}
+/* o atributo hidden precisa vencer o display:inline-flex do .btn */
+.btn[hidden] {
+  display: none !important;
+}
+/* setinha dos botões de grupo da barra do canvas */
+.tool-caret {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 1px;
+  opacity: 0.5;
+}
+.tool-group.active .tool-caret {
+  opacity: 0.8;
+}
 
 /* ===== Toast ===== */
 
@@ -3203,7 +3635,9 @@ body.kb-dragging * {
 /* ===== Painéis laterais (cronograma / marca) ===== */
 
 #schedule-panel,
-#brand-panel {
+#brand-panel,
+#browser-panel,
+#chat-panel {
   position: relative;
   width: 400px;
   max-width: 70vw;
@@ -3213,6 +3647,10 @@ body.kb-dragging * {
   overflow: hidden;
   display: flex;
   animation: panel-in var(--t-med) var(--ease) both;
+}
+#browser-panel,
+#chat-panel {
+  max-width: 85vw; /* o usuário decide a divisão — até quase a tela toda */
 }
 @keyframes panel-in {
   from {
@@ -4244,6 +4682,35 @@ input.post-date:hover {
   display: flex;
   animation: panel-in var(--t-med) var(--ease) both;
 }
+/* alvo de solte: arrastando um item do canvas pra cá */
+#notes-panel.notes-drop-target {
+  border-left-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+#notes-panel.notes-drop-target::after {
+  content: 'Solte pra adicionar às Notas';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(255, 92, 38, 0.08);
+  pointer-events: none;
+}
+.nblock-image {
+  flex: 1;
+  min-width: 0;
+}
+.nblock-image img {
+  display: block;
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
 #tool-notes.active {
   background: var(--panel-2);
   color: var(--accent);
@@ -4328,11 +4795,14 @@ input.post-date:hover {
 
 .notes-blocks {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 3px 6px;
 }
 
 .nblock {
   position: relative;
+  flex: 1 1 100%;
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -4341,6 +4811,15 @@ input.post-date:hover {
 }
 .nblock:hover {
   background: rgba(255, 255, 255, 0.018);
+}
+.nblock.nblock-dragging {
+  opacity: 0.4;
+}
+.nblock.drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.nblock-handle {
+  cursor: grab;
 }
 
 .nblock-handle {
@@ -4446,13 +4925,153 @@ input.post-date:hover {
   margin: 12px 0;
 }
 
+/* novos blocos: sub-subtítulo, citação, destaque, código */
+.nblock-h3 .nblock-text {
+  font-family: var(--font-display);
+  font-size: 14.5px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.nblock-quote .nblock-text {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+  color: var(--muted);
+  font-style: italic;
+}
+.nblock-callout {
+  background: rgba(255, 92, 38, 0.08);
+  border: 1px solid rgba(255, 92, 38, 0.25);
+  border-radius: 10px;
+  padding: 8px 10px 8px 30px !important;
+}
+.nblock-code .nblock-text {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  color: var(--text);
+}
+.nblock-text code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--panel-2);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+.nblock-text a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* bloco de imagem nas Notas */
+.nblock-image {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.nblock-image img {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+.nblock-img-resize {
+  position: absolute;
+  right: -3px;
+  bottom: 8px;
+  width: 14px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--accent);
+  opacity: 0;
+  cursor: ew-resize;
+  transition: opacity var(--t-fast);
+}
+.nblock-image:hover .nblock-img-resize {
+  opacity: 0.85;
+}
+
+/* imagem dentro do card de nota vinculado (canvas) */
+.note-img img {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+  margin: 4px 0;
+}
+.note-h3 {
+  font-weight: 600;
+  margin-top: 4px;
+}
+.note-quote {
+  border-left: 2px solid var(--accent);
+  padding-left: 8px;
+  color: var(--muted);
+  font-style: italic;
+}
+.note-callout {
+  background: rgba(255, 92, 38, 0.1);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.note-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 4px 8px;
+  white-space: pre-wrap;
+}
+
+/* barra de formatação flutuante (seleção de texto) */
+.notes-fmt-toolbar {
+  position: fixed;
+  z-index: 130;
+  display: none;
+  align-items: center;
+  gap: 1px;
+  padding: 4px;
+  background: rgba(22, 22, 25, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.notes-fmt-toolbar.show {
+  display: flex;
+  animation: menu-in var(--t-fast) var(--ease) both;
+}
+.notes-fmt-btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 13px;
+  transition: background var(--t-fast);
+}
+.notes-fmt-btn:hover {
+  background: var(--panel-3);
+  color: var(--accent);
+}
+.notes-fmt-btn.fmt-b { font-weight: 700; }
+.notes-fmt-btn.fmt-i { font-style: italic; }
+.notes-fmt-btn.fmt-u { text-decoration: underline; }
+.notes-fmt-btn.fmt-s { text-decoration: line-through; }
+.notes-fmt-btn.fmt-c { font-family: var(--font-mono); font-size: 11px; }
+.notes-fmt-btn.fmt-l { font-size: 12px; }
+
 /* ============================================================
    UNIVERSO — galeria 360°
    ============================================================ */
 
 #gallery-view.universe-mode {
   overflow: hidden;
-  height: 100vh;
+  height: 100%;
   padding-bottom: 0;
 }
 #gallery-view.universe-mode #gallery-header,
@@ -4738,6 +5357,12 @@ input.post-date:hover {
   letter-spacing: -0.02em;
   color: var(--faint);
 }
+.uni-empty-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
 
 /* ===== Responsivo ===== */
 
@@ -4755,6 +5380,269 @@ input.post-date:hover {
   .settings-nav button span {
     display: none;
   }
+}
+
+/* ===== Explorar (galeria pública da comunidade) ===== */
+
+#gallery-view.explore-mode #gallery-header,
+#gallery-view.explore-mode #stage-filters,
+#gallery-view.explore-mode #client-filters {
+  display: none;
+}
+#explore-view {
+  padding-top: clamp(26px, 4vh, 48px);
+}
+#explore-view.hidden {
+  display: none;
+}
+.explore-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.explore-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(26px, 3.4vw, 38px);
+  letter-spacing: -0.02em;
+}
+.explore-sub {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 22px;
+}
+.explore-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.explore-status {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+/* ===== Terminal (visão da home, app desktop) ===== */
+
+#terminal-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #0b0b0d;
+}
+#terminal-view.hidden {
+  display: none;
+}
+.term-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.term-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.term-status {
+  font-size: 11px;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40ch;
+}
+.term-spacer {
+  flex: 1;
+}
+
+/* abas de sessão na barra */
+.term-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 46vw;
+}
+.term-tabs::-webkit-scrollbar {
+  display: none;
+}
+.term-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px 5px 11px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+.term-tab:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+.term-tab.active {
+  color: var(--text);
+  background: var(--panel-3);
+  border-color: var(--line-strong);
+}
+.term-tab.dead .term-tab-name {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.term-tab-name {
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.term-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity var(--t-fast);
+}
+.term-tab-dot.on {
+  opacity: 1;
+}
+.term-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+}
+.term-close:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
+.term-add {
+  flex-shrink: 0;
+}
+
+/* corpo: um terminal por vez (abas) ou todos juntos (lado a lado) */
+.term-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.term-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.term-pane.hidden {
+  display: none;
+}
+.term-pane-head {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px 5px 12px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+  border-bottom: 1px solid var(--line);
+}
+.term-mount {
+  flex: 1;
+  min-height: 0;
+  padding: 10px 4px 10px 14px;
+}
+.term-mount .xterm {
+  height: 100%;
+}
+/* lado a lado = mosaico em linhas; arraste pelo cabeçalho pra reposicionar */
+.term-body.split {
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+}
+.term-row {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+}
+.term-body.split .term-pane {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0b0b0d;
+  transition: box-shadow var(--t-fast), opacity var(--t-fast), border-color var(--t-fast);
+}
+.term-body.split .term-pane.active {
+  border-color: var(--line-strong);
+}
+.term-body.split .term-pane-head {
+  display: flex;
+  cursor: grab;
+}
+.term-body.split .term-pane-head:active {
+  cursor: grabbing;
+}
+.term-body.split .term-mount {
+  padding: 8px 2px 8px 10px;
+}
+
+/* indicadores de onde o terminal vai cair */
+.term-pane.dragging {
+  opacity: 0.45;
+}
+.term-pane.drop-left {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.term-pane.drop-right {
+  box-shadow: inset -3px 0 0 var(--accent);
+}
+.term-pane.drop-top {
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+.term-pane.drop-bottom {
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+.term-body.drop-end {
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+.term-msg {
+  padding: 48px 40px;
+  color: var(--muted);
+  max-width: 60ch;
+}
+.term-msg .hint-big {
+  margin-bottom: 8px;
 }
 
 /* ===== Movimento reduzido ===== */

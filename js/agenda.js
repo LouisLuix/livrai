@@ -5,6 +5,8 @@
   E.agenda = {};
 
   let month = null; // { y, m }
+  let cal = { unavailable: true, connected: false, email: '' };
+  let calByDate = {}; // eventos do Google agrupados por YYYY-MM-DD do mês visível
 
   function overlayRoot() {
     let el = document.getElementById('agenda-root');
@@ -31,6 +33,7 @@
     const now = new Date();
     if (!month) month = { y: now.getFullYear(), m: now.getMonth() };
     window.addEventListener('keydown', onEsc, true);
+    if (E.calendar) cal = await E.calendar.status();
     render();
   };
 
@@ -47,8 +50,22 @@
     return byDate;
   }
 
+  /* eventos do Google Calendar do mês visível, agrupados por dia */
+  async function loadCalendar() {
+    calByDate = {};
+    if (!E.calendar || !cal.connected) return;
+    const from = new Date(month.y, month.m, 1, 0, 0, 0);
+    const to = new Date(month.y, month.m + 1, 0, 23, 59, 59);
+    const events = await E.calendar.events(from.toISOString(), to.toISOString());
+    events.forEach((ev) => {
+      const key = E.calendar.dateKey(ev);
+      if (!key) return;
+      (calByDate[key] = calByDate[key] || []).push(ev);
+    });
+  }
+
   async function render() {
-    const byDate = await loadPosts();
+    const [byDate] = await Promise.all([loadPosts(), loadCalendar()]);
     const root = overlayRoot();
     root.innerHTML = '';
 
@@ -101,6 +118,7 @@
     head.appendChild(title);
     head.appendChild(next);
     head.appendChild(spacer);
+    head.appendChild(calControl());
     head.appendChild(closeBtn);
     box.appendChild(head);
 
@@ -146,9 +164,71 @@
         });
         cell.appendChild(chip);
       });
+      (calByDate[iso] || []).forEach((ev) => {
+        const time = E.calendar.timeLabel(ev);
+        const chip = document.createElement('button');
+        chip.className = 'agenda-chip ext';
+        chip.style.setProperty('--c', ev.color || '#7aa2f7');
+        chip.title = ev.title + (ev.calendar ? ' · ' + ev.calendar : '') + (time ? ' · ' + time : ' · dia inteiro');
+        chip.innerHTML =
+          '<strong>' + (time ? E.escapeHtml(time) + ' ' : '') + E.escapeHtml(ev.title) + '</strong>' +
+          '<span>' + E.escapeHtml(ev.calendar || 'Google Calendar') + '</span>';
+        chip.addEventListener('click', () => {
+          if (ev.link) window.open(ev.link, '_blank');
+        });
+        cell.appendChild(chip);
+      });
       grid.appendChild(cell);
     }
     box.appendChild(grid);
+  }
+
+  /* controle de conexão com o Google Calendar (cabeçalho da agenda) */
+  function calControl() {
+    if (cal.unavailable) {
+      const span = document.createElement('span');
+      return span; // navegador comum: integração só existe no app desktop
+    }
+    if (cal.connected) {
+      const wrap = document.createElement('span');
+      wrap.className = 'agenda-cal on';
+      wrap.innerHTML = E.icon('calendar', 14);
+      const lbl = document.createElement('span');
+      lbl.textContent = cal.email || 'Google Calendar';
+      wrap.appendChild(lbl);
+      const off = document.createElement('button');
+      off.className = 'agenda-cal-off';
+      off.innerHTML = E.icon('close', 11);
+      off.title = 'Desconectar o Google Calendar deste computador';
+      off.addEventListener('click', async () => {
+        await E.calendar.disconnect();
+        cal = { unavailable: false, connected: false, email: '' };
+        E.ui.toast('Google Calendar desconectado');
+        render();
+      });
+      wrap.appendChild(off);
+      return wrap;
+    }
+    const btn = document.createElement('button');
+    btn.className = 'btn ghost agenda-cal-connect';
+    E.setLabel(btn, 'calendar', 'Conectar Google Calendar');
+    btn.addEventListener('click', async () => {
+      await E.calendar.connect();
+      E.ui.toast('Autorize na janela do navegador — eu espero aqui');
+      const deadline = Date.now() + 180000;
+      const poll = setInterval(async () => {
+        const now = await E.calendar.status();
+        if (now.connected) {
+          clearInterval(poll);
+          cal = now;
+          E.ui.toast('Google Calendar conectado!');
+          render();
+        } else if (Date.now() > deadline) {
+          clearInterval(poll);
+        }
+      }, 2000);
+    });
+    return btn;
   }
 
   const btn = document.getElementById('btn-agenda');

@@ -1,7 +1,7 @@
 {
   "name": "livrai",
   "productName": "Livrai",
-  "version": "1.7.0",
+  "version": "1.9.0",
   "description": "LIVRAI — Estúdio: organizador visual de entregas para quem dirige criação",
   "author": "Luis Gustavo Felix (@luisluix)",
   "main": "main.js",
@@ -25,7 +25,11 @@
     "files": [
       "main.js",
       "preload.js",
+      "livrai-term.py",
       "app/**/*"
+    ],
+    "asarUnpack": [
+      "livrai-term.py"
     ],
     "win": {
       "target": [

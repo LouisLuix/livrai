@@ -11,6 +11,9 @@
     'arrow-up-right': '<path d="M7 17 17 7M8 7h9v9"/>',
     'chevron-left': '<path d="M14.5 6 8.5 12l6 6"/>',
     'chevron-right': '<path d="M9.5 6l6 6-6 6"/>',
+    'chevron-down': '<path d="m6 9.5 6 6 6-6"/>',
+    compass:
+      '<circle cx="12" cy="12" r="8.5"/><path d="m15.6 8.4-1.9 5.3-5.3 1.9 1.9-5.3z"/>',
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
     check: '<path d="M5 12.5 10 17.5 19 7"/>',
     alert: '<path d="M12 3 2.5 20h19z"/><path d="M12 9.5v5M12 17.2v.3"/>',
@@ -79,6 +82,8 @@
     filter: '<path d="M3.5 5h17l-6.5 7.5v5L10 20v-7.5z"/>',
     archive:
       '<rect x="3" y="4" width="18" height="5" rx="1.2"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4"/>',
+    terminal:
+      '<rect x="3" y="4.5" width="18" height="15" rx="1.6"/><path d="m6.8 9.2 3.2 2.8-3.2 2.8M12.5 15.2h4.7"/>',
     logo: '<path d="M4 4h7v7H4zM13 13h7v7h-7zM13 4l7 7M4 13l7 7"/>',
   };
 

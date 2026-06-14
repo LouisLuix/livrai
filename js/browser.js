@@ -15,6 +15,8 @@
   const HOME = 'https://www.google.com/';
 
   let container = null;
+  let mountedIn = null; // container onde os webviews vivem agora
+  let lockedProject = null; // painel dentro do projeto: destino travado
   let tabs = []; // { id, url, title, wv }
   let activeId = null;
 
@@ -41,6 +43,7 @@
   /* ---------- destino das capturas ---------- */
 
   async function targetProject() {
+    if (lockedProject) return (await E.db.get('projects', lockedProject.id)) || null;
     const id = localStorage.getItem(TARGET_KEY);
     if (!id) return null;
     return (await E.db.get('projects', id)) || null;
@@ -255,6 +258,8 @@
   function mkWebview(tab) {
     const wv = document.createElement('webview');
     wv.setAttribute('partition', 'persist:livrai-nav');
+    // identidade de Chrome puro: sem isso o Google recusa login embutido
+    wv.setAttribute('useragent', navigator.userAgent.replace(/\s(Livrai|livrai|Electron)\/\S+/g, ''));
     wv.setAttribute('allowpopups', 'true');
     wv.className = 'browser-wv';
     wv.src = tab.url || HOME;
@@ -310,6 +315,11 @@
         });
       }
       entries.push({
+        label: 'Abrir no navegador externo',
+        icon: 'arrow-up-right',
+        onClick: () => window.open(params.linkURL || tab.url),
+      });
+      entries.push({
         label: 'Tirar print da página',
         icon: 'camera',
         onClick: capturePage,
@@ -349,9 +359,15 @@
   }
 
   function mountTab(tab) {
-    if (tab.wv) return;
+    const stage = container.querySelector('.browser-stage');
+    if (!stage) return;
+    if (tab.wv && stage.contains(tab.wv)) return;
+    if (tab.wv) {
+      try { tab.wv.remove(); } catch (_) {}
+      tab.wv = null;
+    }
     tab.wv = mkWebview(tab);
-    container.querySelector('.browser-stage').appendChild(tab.wv);
+    stage.appendChild(tab.wv);
   }
 
   function syncActive() {
@@ -403,6 +419,13 @@
     const wrap = container.querySelector('.browser-target-wrap');
     if (!wrap) return;
     wrap.innerHTML = '';
+    if (lockedProject) {
+      const chip = document.createElement('span');
+      chip.className = 'browser-target browser-target-locked mono';
+      chip.textContent = 'Guardando em: ' + lockedProject.name;
+      wrap.appendChild(chip);
+      return;
+    }
 
     const input = document.createElement('input');
     input.className = 'browser-target';
@@ -479,8 +502,19 @@
 
   /* ---------- view ---------- */
 
-  E.browser.render = async function (root) {
+  E.browser.render = async function (root, opts) {
     container = root;
+    lockedProject = (opts && opts.lock) || null;
+    if (mountedIn && mountedIn !== root) {
+      // trocou de casa (home <-> painel): os webviews renascem no novo lugar
+      tabs.forEach((t) => {
+        if (t.wv) {
+          try { t.wv.remove(); } catch (_) {}
+          t.wv = null;
+        }
+      });
+    }
+    mountedIn = root;
 
     if (!isDesktop()) {
       root.innerHTML =
@@ -501,6 +535,7 @@
         '<button class="btn browser-crop" title="Recortar uma área da página — só o pedaço escolhido vira card">' + E.icon('frame', 14) + '<span>Recorte</span></button>' +
         '<button class="btn ghost browser-shot" title="Print da página inteira (área visível)">' + E.icon('camera', 14) + '<span>Print</span></button>' +
         '<button class="btn ghost browser-savelink" title="Guardar esta página como card de link">' + E.icon('link', 14) + '<span>Guardar página</span></button>' +
+        '<button class="btn ghost icon-only browser-ext" title="Abrir esta página no navegador externo (atenção: o login feito lá não volta pra cá)">' + E.icon('arrow-up-right', 14) + '</button>' +
         '</div>' +
         '<div class="browser-tabs"></div>' +
         '<div class="browser-stage"></div>';
@@ -531,20 +566,65 @@
       });
       root.querySelector('.browser-shot').addEventListener('click', capturePage);
       root.querySelector('.browser-crop').addEventListener('click', captureRegion);
+      root.querySelector('.browser-ext').addEventListener('click', () => {
+        const t = active();
+        if (t && t.url) window.open(t.url); // o app manda pro navegador externo
+      });
       root.querySelector('.browser-savelink').addEventListener('click', () => {
         const t = active();
         if (t) savePageLink(t.url, t.title);
       });
 
+    }
+
+    if (!tabs.length) {
       tabs = loadTabs().map((t) => ({ id: t.id, url: t.url, title: t.title }));
       if (!tabs.length) tabs = [{ id: E.uid(), url: HOME, title: 'Nova guia' }];
       activeId = localStorage.getItem(TABS_KEY + '-active');
       if (!tabs.some((t) => t.id === activeId)) activeId = tabs[0].id;
-      tabs.forEach((t) => mountTab(t));
     }
+    tabs.forEach((t) => mountTab(t));
 
     renderTabs();
     syncActive();
     renderTargetSelect();
   };
+
+  /* ---------- painel lateral: navegador AO LADO do canvas ---------- */
+
+  const panel = document.getElementById('browser-panel');
+  const panelContent = panel ? panel.querySelector('.panel-content') : null;
+  if (panel) E.ui.initPanelResize(panel, 'estudio-browser-w');
+
+  E.browser.isOpen = function () {
+    return !!panel && !panel.classList.contains('hidden');
+  };
+
+  E.browser.close = function () {
+    if (!E.browser.isOpen()) return;
+    panel.classList.add('hidden');
+    const b = document.getElementById('tool-browser');
+    if (b) b.classList.remove('active');
+  };
+
+  E.browser.togglePanel = function () {
+    if (!panel) return;
+    if (E.browser.isOpen()) {
+      E.browser.close();
+      return;
+    }
+    const st = E.canvas.getState();
+    if (!st.project) return;
+    [E.schedule, E.brand, E.notes, E.chat].forEach((m) => {
+      if (m && m.isOpen && m.isOpen() && m.close) m.close();
+    });
+    panel.classList.remove('hidden');
+    E.ui.applyPanelWidth(panel, 'estudio-browser-w');
+    const b = document.getElementById('tool-browser');
+    if (b) b.classList.add('active');
+    E.browser.render(panelContent, { lock: { id: st.project.id, name: st.project.name } });
+  };
+
+  const toolBtn = document.getElementById('tool-browser');
+  if (toolBtn) toolBtn.addEventListener('click', E.browser.togglePanel);
 })();

@@ -1,6 +1,6 @@
 {
-  "version": "1.7.0",
-  "date": "2026-06-12",
-  "notes": "Chat na home: converse com qualquer IA (Claude, OpenAI, Gemini ou modelos locais via Ollama) sem sair do estúdio — com histórico, respostas em tempo real, projeto vinculado como base da conversa e seleção de trecho que vira nota no canvas. Mais tudo da 1.6.0: compartilhar decks por link, sincronização na nuvem, novidades, busca Cmd+F, agenda geral, versões de arte, lixeira e cofre de chaves.",
+  "version": "1.9.0",
+  "date": "2026-06-14",
+  "notes": "Notas viraram um editor de documento visual estilo Notion: texto rico (negrito, itálico, sublinhado, riscado, código, link) com barra de seleção e atalhos, novos blocos (citação, destaque, código, sub-subtítulo), imagens que você cola (Cmd+V), redimensiona e põe lado a lado, reordenar arrastando, e arrastar qualquer item do canvas pra dentro das Notas. O explorador de pastas agora abre num menu suspenso que se atualiza sozinho e deixa arrastar arquivos direto pro canvas. Barra do canvas reorganizada em grupos (Projeto, Criar, Notas, Compartilhar), menu Projeto com nome/fase/marca/cliente/salvar, faixa de projetos retrátil e clique direito no canvas pra criar item na hora.",
   "url": "https://github.com/LouisLuix/livrai/releases/latest"
 }

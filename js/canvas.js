@@ -125,6 +125,8 @@
     if (project) saveProjectNow();
     if (E.schedule && E.schedule.isOpen()) E.schedule.close();
     if (E.notes && E.notes.isOpen()) E.notes.close();
+    if (E.browser && E.browser.isOpen && E.browser.isOpen()) E.browser.close();
+    if (E.chat && E.chat.isOpen && E.chat.isOpen()) E.chat.close();
     allList.forEach((it) => {
       if (it.content && it.content.blobId) {
         E.db.releaseBlobUrl(it.content.blobId);
@@ -509,6 +511,46 @@
     return folder;
   }
 
+  /* Arquivo arrastado do dropdown "Explorar" pro canvas: lê pelo caminho
+     real e cai no card certo (imagem/vídeo/áudio/arquivo) no ponto do drop */
+  async function importPathAt(path, name, x, y) {
+    try {
+      const blob = await E.files.readPath(path);
+      let f = blob;
+      try { f = new File([blob], name || 'arquivo', { type: blob.type }); } catch (_) {}
+      const item = await createAnyFromBlob(f, x - 110, y - 70);
+      if (item) selectOnly(item.id);
+      return item;
+    } catch (_) {
+      E.ui.toast('⚠️ Não consegui trazer esse arquivo pro canvas');
+      return null;
+    }
+  }
+
+  /* Pasta arrastada do dropdown: vincula pelo caminho real (não copia nada) */
+  async function linkFolderFromPath(abs, x, y) {
+    const existing = allList.find(
+      (it) => it.kind === 'folder' && it.content && it.content.path === abs
+    );
+    if (existing) {
+      E.ui.toast('Essa pasta já está vinculada a este projeto');
+      focusItem(existing.id);
+      return existing;
+    }
+    const r = await E.files.linkPath(abs);
+    if (!r) {
+      E.ui.toast('⚠️ Não consegui vincular a pasta');
+      return null;
+    }
+    const folder = addItem({
+      kind: 'folder', x: x - 110, y: y - 66, w: 220, h: 132,
+      content: { path: r.path, name: r.name },
+    });
+    selectOnly(folder.id);
+    E.ui.toast('Pasta vinculada — nada foi copiado, o card usa o caminho real');
+    return folder;
+  }
+
   /* Importação vinda do explorador de pastas vinculadas */
   async function importFile(blob, name) {
     const c = viewCenterWorld();
@@ -657,6 +699,8 @@
         E.items.position(els.get(s.id), it);
       });
       E.flow.refresh();
+      // realça o painel de Notas quando o item está por cima dele (alvo de solte)
+      if (drag.moved) updateNotesDropTarget(e.clientX, e.clientY);
     } else if (mode === 'resize') {
       const it = items.get(drag.id);
       if (!it) return;
@@ -703,7 +747,21 @@
       viewport.classList.remove('panning');
       saveProjectDebounced();
     } else if (mode === 'drag' && drag) {
-      if (drag.moved) {
+      clearNotesDropTarget();
+      if (drag.moved && notesPanelHit(e.clientX, e.clientY)) {
+        // soltou sobre as Notas abertas: manda os itens pra lá e devolve os cards
+        const dropped = selectedItems();
+        drag.starts.forEach((s) => {
+          const it = items.get(s.id);
+          if (it) {
+            it.x = s.x;
+            it.y = s.y;
+            E.items.position(els.get(it.id), it);
+          }
+        });
+        E.flow.refresh();
+        if (E.notes && E.notes.acceptCanvasItems) E.notes.acceptCanvasItems(dropped);
+      } else if (drag.moved) {
         drag.starts.forEach((s) => {
           const it = items.get(s.id);
           if (it) saveItem(it);
@@ -789,9 +847,33 @@
 
   /* ---------- menu de contexto ---------- */
 
+  /* arrastar item do canvas pro painel de Notas aberto */
+  function notesPanelHit(x, y) {
+    if (!(E.notes && E.notes.isOpen && E.notes.isOpen())) return false;
+    const p = document.getElementById('notes-panel');
+    if (!p || p.classList.contains('hidden')) return false;
+    const r = p.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+  function updateNotesDropTarget(x, y) {
+    const p = document.getElementById('notes-panel');
+    if (!p) return;
+    p.classList.toggle('notes-drop-target', notesPanelHit(x, y));
+  }
+  function clearNotesDropTarget() {
+    const p = document.getElementById('notes-panel');
+    if (p) p.classList.remove('notes-drop-target');
+  }
+
   viewport.addEventListener('contextmenu', (e) => {
     const itemEl = e.target.closest('.item');
-    if (!itemEl) return;
+    if (!itemEl) {
+      // clique direito num lugar livre: menu Criar — o item nasce onde o cursor está
+      if (!project) return;
+      e.preventDefault();
+      E.ui.menu(e.clientX, e.clientY, createMenuEntries(screenToWorld(e.clientX, e.clientY)));
+      return;
+    }
     e.preventDefault();
     const id = itemEl.dataset.id;
     const wasSelected = selection.has(id);
@@ -991,6 +1073,17 @@
           touchProject();
           E.ui.toast('Capa do projeto atualizada');
         },
+      });
+    }
+    // nuvem PESSOAL: sobe os arquivos selecionados pro Drive do usuário
+    const uploadable = (wasSelected ? selectedItems() : it ? [it] : []).filter(
+      (s) => s && s.content && s.content.blobId && ['image', 'video', 'audio', 'file'].indexOf(s.kind) >= 0
+    );
+    if (uploadable.length && E.drive) {
+      entries.push({
+        label: 'Subir pro Google Drive' + (uploadable.length > 1 ? ' (' + uploadable.length + ' arquivos)' : ''),
+        icon: 'upload',
+        onClick: () => E.drive.uploadItems(uploadable),
       });
     }
     entries.push({ label: 'Excluir', icon: 'trash', danger: true, onClick: deleteSelection });
@@ -1373,6 +1466,19 @@
     e.preventDefault();
     if (!isOpen()) return;
     const p = screenToWorld(e.clientX, e.clientY);
+
+    // arrasto vindo do dropdown "Explorar": traz o caminho do arquivo/pasta
+    const internal = e.dataTransfer.getData('application/x-livrai-path');
+    if (internal) {
+      let info = null;
+      try { info = JSON.parse(internal); } catch (_) {}
+      if (info && info.path) {
+        if (info.dir) await linkFolderFromPath(info.path, p.x, p.y);
+        else await importPathAt(info.path, info.name, p.x, p.y);
+      }
+      return;
+    }
+
     // snapshot SÍNCRONO — o dataTransfer só vale durante o evento
     const drops = [...e.dataTransfer.items]
       .map((it) => ({
@@ -1391,9 +1497,30 @@
       return;
     }
     if (uri && /^https?:/i.test(uri.trim())) {
-      createLink(uri.trim().split('\n')[0], '', p.x, p.y);
+      const url = uri.trim().split('\n')[0];
+      // imagem arrastada de um site (ex.: navegador embutido) vira IMAGEM
+      // de verdade — baixada e salva na pasta do projeto, não card de link
+      if (await tryImportRemoteImage(url, p.x, p.y)) return;
+      createLink(url, '', p.x, p.y);
     }
   });
+
+  async function tryImportRemoteImage(url, x, y) {
+    try {
+      if (!E.files || !(await E.files.isDesktop())) return false;
+      const r = await fetch('/__studio/fetch-url?u=' + encodeURIComponent(url), {
+        headers: { 'X-Livrai': '1' },
+      });
+      if (!r.ok) return false;
+      const blob = await r.blob();
+      if ((blob.type || '').indexOf('image/') !== 0) return false;
+      await createImageFromBlob(blob, x, y);
+      E.ui.toast('Imagem importada e salva na pasta do projeto');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /* ---------- atalhos de teclado ---------- */
 
@@ -1450,6 +1577,7 @@
     if (!project) return;
     project.name = titleInput.value.trim() || 'Sem nome';
     titleInput.value = project.name;
+    if (E.app && E.app.setTabName) E.app.setTabName(project.id, project.name);
     touchProject();
   });
   titleInput.addEventListener('keydown', (e) => {
@@ -1463,6 +1591,137 @@
     stageDot.style.background = E.stageById(project.stage).color;
     touchProject();
   });
+
+  /* Configurações do projeto (nome + fase + ações) num popover discreto */
+  const projectBtn = document.getElementById('tool-project');
+  const projectPop = document.getElementById('project-settings-pop');
+  const projectActions = document.getElementById('project-pop-actions');
+  function closeProjectPop() {
+    if (!projectPop) return;
+    projectPop.classList.add('hidden');
+    if (projectBtn) projectBtn.classList.remove('active');
+    window.removeEventListener('pointerdown', onProjectPopAway, true);
+    window.removeEventListener('keydown', onProjectPopKey, true);
+  }
+  function onProjectPopAway(e) {
+    if (!projectPop.contains(e.target) && e.target !== projectBtn && !projectBtn.contains(e.target)) {
+      closeProjectPop();
+    }
+  }
+  function onProjectPopKey(e) {
+    if (e.key === 'Escape') closeProjectPop();
+  }
+
+  function projectActionBtn(label, icon, onClick, danger) {
+    const b = document.createElement('button');
+    b.className = 'project-pop-action' + (danger ? ' danger' : '');
+    b.insertAdjacentHTML('beforeend', E.icon(icon, 15));
+    const s = document.createElement('span');
+    s.textContent = label;
+    b.appendChild(s);
+    b.addEventListener('click', () => {
+      closeProjectPop();
+      onClick();
+    });
+    return b;
+  }
+
+  async function buildProjectActions() {
+    if (!projectActions || !project) return;
+    projectActions.innerHTML = '';
+    const desktop = E.files && (await E.files.isDesktop());
+
+    // Marca & produto do projeto (logo, cores, fontes, referências)
+    projectActions.appendChild(
+      projectActionBtn('Marca & produto', 'palette', () => E.brand.toggle())
+    );
+
+    // Cliente do projeto
+    projectActions.appendChild(
+      projectActionBtn('Cliente…', 'user', () => E.gallery.assignClient(project))
+    );
+
+    // Salvar em… (escolhe a pasta onde o Estúdio guarda os arquivos)
+    if (desktop) {
+      projectActions.appendChild(
+        projectActionBtn('Salvar em…', 'folder', async () => {
+          const r = await E.files.chooseStudioFolder();
+          if (r && r.root) E.ui.toast('Os arquivos passam a ser salvos em: ' + r.root);
+        })
+      );
+      // Abrir a pasta do projeto / do Estúdio no Finder
+      projectActions.appendChild(
+        projectActionBtn('Abrir pasta no Finder', 'arrow-up-right', () => {
+          if (project.linkedFolder) E.files.openPath(project.linkedFolder).catch(() => E.files.revealStudio());
+          else E.files.revealStudio();
+        })
+      );
+    }
+
+    // Exportar o projeto inteiro como arquivo .livrai
+    projectActions.appendChild(
+      projectActionBtn('Salvar em arquivo… (.livrai)', 'download', () => E.projectFile.exportProject(project.id))
+    );
+
+    const sep = document.createElement('div');
+    sep.className = 'project-pop-sep';
+    projectActions.appendChild(sep);
+
+    // Arquivar / Desarquivar
+    projectActions.appendChild(
+      projectActionBtn(project.archived ? 'Desarquivar projeto' : 'Arquivar projeto', 'archive', async () => {
+        project.archived = !project.archived;
+        touchProject();
+        await E.db.put('projects', project);
+        E.ui.toast(project.archived ? 'Projeto arquivado' : 'Projeto desarquivado');
+      })
+    );
+
+    // Excluir o projeto (some das abas e volta pra galeria)
+    projectActions.appendChild(
+      projectActionBtn(
+        'Excluir projeto',
+        'trash',
+        async () => {
+          const ok = await E.ui.confirm(
+            'Excluir "' + project.name + '"?',
+            'O projeto e tudo que está no canvas dele serão apagados. Essa ação não tem volta.',
+            'Excluir'
+          );
+          if (!ok) return;
+          const id = project.id;
+          const list = await E.db.itemsByProject(id);
+          for (const it of list) await E.db.del('items', it.id);
+          await E.db.del('projects', id);
+          E.ui.toast('Projeto excluído');
+          if (E.app && E.app.closeProject) E.app.closeProject(id);
+          if (E.gallery) E.gallery.render();
+        },
+        true
+      )
+    );
+  }
+
+  if (projectBtn && projectPop) {
+    projectBtn.addEventListener('click', () => {
+      if (!projectPop.classList.contains('hidden')) {
+        closeProjectPop();
+        return;
+      }
+      buildProjectActions();
+      const r = projectBtn.getBoundingClientRect();
+      projectPop.style.left = r.left + 'px';
+      projectPop.style.top = r.bottom + 6 + 'px';
+      projectPop.classList.remove('hidden');
+      projectBtn.classList.add('active');
+      setTimeout(() => {
+        window.addEventListener('pointerdown', onProjectPopAway, true);
+        window.addEventListener('keydown', onProjectPopKey, true);
+      }, 0);
+      titleInput.focus();
+      titleInput.select();
+    });
+  }
 
   fileInput.addEventListener('change', async () => {
     const files = [...fileInput.files].filter(isMediaFile);
@@ -1498,145 +1757,184 @@
 
   const PALETTE = ['#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#fb7185', '#f472b6', '#e8e8ec'];
 
+  /* Itens do menu Criar — fonte ÚNICA. `place(p)` cria o item no ponto p (mundo).
+     O botão "Criar" usa o modo "clique pra posicionar"; o clique direito no vazio
+     cria direto onde o cursor estava. */
+  const CREATE_DEFS = [
+    { header: 'Conteúdo' },
+    {
+      label: 'Nota', icon: 'note', hint: 'a nota',
+      place: (p) => {
+        const note = createNote(p.x - 115, p.y - 75, '');
+        selectOnly(note.id);
+        E.items.beginEdit(note, els.get(note.id), saveItem);
+      },
+    },
+    {
+      label: 'Título', icon: 'type', hint: 'o título',
+      place: (p) => {
+        const label = createLabel(p.x - 210, p.y - 26, 'Título da seção');
+        selectOnly(label.id);
+        E.items.beginEdit(label, els.get(label.id), saveItem);
+      },
+    },
+    {
+      label: 'Post', icon: 'calendar', hint: 'o post',
+      place: (p) => {
+        const post = createPost(p.x - 120, p.y - 85);
+        selectOnly(post.id);
+        E.items.beginEdit(post, els.get(post.id), saveItem);
+      },
+    },
+    { separator: true },
+    { header: 'Mídia & arquivos' },
+    {
+      label: 'Imagem ou vídeo (do computador)', icon: 'image', hint: 'a mídia',
+      place: (p) => {
+        pendingImagePoint = p;
+        fileInput.click();
+      },
+    },
+    {
+      label: 'Arquivo (PDF, Office, qualquer um)', icon: 'copy', hint: 'o arquivo',
+      place: (p) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.multiple = true;
+        input.addEventListener('change', async () => {
+          const files = [...input.files];
+          for (let i = 0; i < files.length; i++) {
+            await createAnyFromBlob(files[i], p.x - 110 + i * 44, p.y - 66 + i * 44);
+          }
+        });
+        input.click();
+      },
+    },
+    {
+      label: 'Pasta do computador', icon: 'folder', hint: 'a pasta',
+      place: async (p) => {
+        const r = await E.files.linkFolder();
+        if (!r) return;
+        const folder = addItem({
+          kind: 'folder', x: p.x - 110, y: p.y - 66, w: 220, h: 132,
+          content: { path: r.path, name: r.name },
+        });
+        selectOnly(folder.id);
+        E.ui.toast('Pasta vinculada — dois cliques pra explorar sem sair do Estúdio');
+      },
+    },
+    {
+      label: 'Link', icon: 'link', hint: 'o link',
+      place: (p) => {
+        const link = addItem({
+          kind: 'link', x: p.x - 120, y: p.y - 60, w: 240, h: 130,
+          content: { url: '', title: '' },
+        });
+        selectOnly(link.id);
+        const inp = els.get(link.id).querySelector('.link-url-input');
+        if (inp) inp.focus();
+      },
+    },
+    { separator: true },
+    { header: 'Layout' },
+    {
+      label: 'Prancha', icon: 'frame', hint: 'a prancha',
+      place: (p) => {
+        const frame = createFrame('Prancha ' + (frameCount() + 1), '1:1', p.x - 360, p.y - 360);
+        selectOnly(frame.id);
+        E.ui.toast('Prancha criada — mude o formato no seletor da barrinha dela');
+      },
+    },
+    {
+      label: 'Cor', icon: 'droplet', hint: 'a cor',
+      place: (p) => {
+        const color = createColor(p.x - 65, p.y - 65, PALETTE[items.size % PALETTE.length]);
+        selectOnly(color.id);
+      },
+    },
+    {
+      label: 'Fluxograma', icon: 'flow', hint: 'a primeira etapa do fluxo',
+      place: (p) => {
+        const node = createFlowNode(p.x - 110, p.y - 44, 'step', 'Nova etapa');
+        selectOnly(node.id);
+        E.items.beginEdit(node, els.get(node.id), saveItem);
+        E.ui.toast('Arraste do pontinho na borda do nó até outro item — ou solte no vazio pra criar a próxima etapa');
+      },
+    },
+    { separator: true },
+    { header: 'Inteligência artificial' },
+    {
+      label: 'Gerador de IA', icon: 'sparkles', hint: 'o gerador',
+      place: (p) => {
+        const gen = addItem({
+          kind: 'gen', x: p.x - 150, y: p.y - 260, w: 300, h: 520,
+          content: {
+            prompt: '', type: 'imagem', imageModel: 'gemini', aspect: '1:1',
+            quality: 'alta', useIdentity: true, useBrand: true, useProduct: true,
+          },
+        });
+        selectOnly(gen.id);
+      },
+    },
+  ];
+
+  /* Sem ponto → modo "clique pra posicionar" (botão Criar).
+     Com ponto → cria direto naquele lugar (clique direito no vazio). */
+  function createMenuEntries(point) {
+    return CREATE_DEFS.map((d) => {
+      if (d.header || d.separator) return d;
+      return {
+        label: d.label,
+        icon: d.icon,
+        onClick: point ? () => d.place(point) : () => startPlacement(d.hint, d.place),
+      };
+    });
+  }
+
   document.getElementById('tool-create').addEventListener('click', (e) => {
     const r = e.currentTarget.getBoundingClientRect();
-    E.ui.menu(r.left, r.bottom + 6, [
-      {
-        label: 'Gerador de IA',
-        icon: 'sparkles',
-        onClick: () =>
-          startPlacement('o gerador', (p) => {
-            const gen = addItem({
-              kind: 'gen', x: p.x - 150, y: p.y - 260, w: 300, h: 520,
-              content: {
-                prompt: '', type: 'imagem', imageModel: 'gemini', aspect: '1:1',
-                quality: 'alta', useIdentity: true, useBrand: true, useProduct: true,
-              },
-            });
-            selectOnly(gen.id);
-          }),
-      },
-      {
-        label: 'Nota',
-        icon: 'note',
-        onClick: () =>
-          startPlacement('a nota', (p) => {
-            const note = createNote(p.x - 115, p.y - 75, '');
-            selectOnly(note.id);
-            E.items.beginEdit(note, els.get(note.id), saveItem);
-          }),
-      },
-      {
-        label: 'Imagem ou vídeo (do computador)',
-        icon: 'image',
-        onClick: () =>
-          startPlacement('a mídia', (p) => {
-            pendingImagePoint = p;
-            fileInput.click();
-          }),
-      },
-      {
-        label: 'Arquivo (PDF, Office, qualquer um)',
-        icon: 'copy',
-        onClick: () =>
-          startPlacement('o arquivo', (p) => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.multiple = true;
-            input.addEventListener('change', async () => {
-              const files = [...input.files];
-              for (let i = 0; i < files.length; i++) {
-                await createAnyFromBlob(files[i], p.x - 110 + i * 44, p.y - 66 + i * 44);
-              }
-            });
-            input.click();
-          }),
-      },
-      {
-        label: 'Pasta do computador',
-        icon: 'folder',
-        onClick: () =>
-          startPlacement('a pasta', async (p) => {
-            const r = await E.files.linkFolder();
-            if (!r) return;
-            const folder = addItem({
-              kind: 'folder', x: p.x - 110, y: p.y - 66, w: 220, h: 132,
-              content: { path: r.path, name: r.name },
-            });
-            selectOnly(folder.id);
-            E.ui.toast('Pasta vinculada — dois cliques pra explorar sem sair do Estúdio');
-          }),
-      },
-      {
-        label: 'Fluxograma',
-        icon: 'flow',
-        onClick: () =>
-          startPlacement('a primeira etapa do fluxo', (p) => {
-            const node = createFlowNode(p.x - 110, p.y - 44, 'step', 'Nova etapa');
-            selectOnly(node.id);
-            E.items.beginEdit(node, els.get(node.id), saveItem);
-            E.ui.toast('Arraste do pontinho na borda do nó até outro item — ou solte no vazio pra criar a próxima etapa');
-          }),
-      },
-      {
-        label: 'Post',
-        icon: 'calendar',
-        onClick: () =>
-          startPlacement('o post', (p) => {
-            const post = createPost(p.x - 120, p.y - 85);
-            selectOnly(post.id);
-            E.items.beginEdit(post, els.get(post.id), saveItem);
-          }),
-      },
-      {
-        label: 'Prancha',
-        icon: 'frame',
-        onClick: () =>
-          startPlacement('a prancha', (p) => {
-            const frame = createFrame('Prancha ' + (frameCount() + 1), '1:1', p.x - 360, p.y - 360);
-            selectOnly(frame.id);
-            E.ui.toast('Prancha criada — mude o formato no seletor da barrinha dela');
-          }),
-      },
-      {
-        label: 'Link',
-        icon: 'link',
-        onClick: () =>
-          startPlacement('o link', (p) => {
-            const link = addItem({
-              kind: 'link', x: p.x - 120, y: p.y - 60, w: 240, h: 130,
-              content: { url: '', title: '' },
-            });
-            selectOnly(link.id);
-            const inp = els.get(link.id).querySelector('.link-url-input');
-            if (inp) inp.focus();
-          }),
-      },
-      {
-        label: 'Cor',
-        icon: 'droplet',
-        onClick: () =>
-          startPlacement('a cor', (p) => {
-            const color = createColor(p.x - 65, p.y - 65, PALETTE[items.size % PALETTE.length]);
-            selectOnly(color.id);
-          }),
-      },
-      {
-        label: 'Título',
-        icon: 'type',
-        onClick: () =>
-          startPlacement('o título', (p) => {
-            const label = createLabel(p.x - 210, p.y - 26, 'Título da seção');
-            selectOnly(label.id);
-            E.items.beginEdit(label, els.get(label.id), saveItem);
-          }),
-      },
-    ]);
+    E.ui.menu(r.left, r.bottom + 6, createMenuEntries(null));
   });
 
-  document.getElementById('tool-brand').addEventListener('click', () => E.brand.toggle());
-  document.getElementById('tool-schedule').addEventListener('click', () => E.schedule.toggle());
-  document.getElementById('tool-export').addEventListener('click', () => E.exporter.openExportModal());
+  /* ---------- grupos da barra (cada ícone abre um dropdown) ---------- */
+  const grpTools = document.getElementById('grp-tools');
+  const grpOutput = document.getElementById('grp-output');
+
+  function groupMenu(anchor, entries) {
+    const r = anchor.getBoundingClientRect();
+    E.ui.menu(r.left, r.bottom + 6, entries);
+  }
+
+  if (grpTools) {
+    grpTools.addEventListener('click', () =>
+      groupMenu(grpTools, [
+        { label: 'Notas', icon: 'note', onClick: () => E.notes.toggle() },
+        { label: 'Chat', icon: 'sparkles', onClick: () => E.chat.togglePanel() },
+        { label: 'Navegador', icon: 'link', onClick: () => E.browser.togglePanel() },
+      ])
+    );
+  }
+  if (grpOutput) {
+    grpOutput.addEventListener('click', () =>
+      groupMenu(grpOutput, [
+        { label: 'Cronograma', icon: 'calendar', onClick: () => E.schedule.toggle() },
+        { separator: true },
+        { label: 'Exportar', icon: 'download', onClick: () => E.exporter.openExportModal() },
+        { label: 'Compartilhar', icon: 'arrow-up-right', onClick: () => E.share.openDialog() },
+      ])
+    );
+  }
+
+  /* destaca o grupo quando um painel dele está aberto */
+  function syncToolGroups() {
+    const on = (m) => !!(m && m.isOpen && m.isOpen());
+    if (grpTools) grpTools.classList.toggle('active', on(E.notes) || on(E.chat) || on(E.browser));
+    if (grpOutput) grpOutput.classList.toggle('active', on(E.schedule));
+  }
+  ['brand-panel', 'schedule-panel', 'notes-panel', 'chat-panel', 'browser-panel'].forEach((id) => {
+    const panel = document.getElementById(id);
+    if (panel) new MutationObserver(syncToolGroups).observe(panel, { attributes: true, attributeFilter: ['class'] });
+  });
 
   document.getElementById('zoom-in').addEventListener('click', () => zoomCenter(1.25));
   document.getElementById('zoom-out').addEventListener('click', () => zoomCenter(0.8));

@@ -17,33 +17,60 @@
     });
   }
 
-  /* ---------- alternador universo / grade / kanban ---------- */
+  /* ---------- alternador de visualização ----------
+     "Visualização" é um dropdown com os modos de projeto (Universo,
+     Grade, Kanban); Explorar, Chat e Navegador são botões próprios. */
+
+  const PROJECT_VIEWS = [
+    { id: 'universe', label: 'Universo', icon: 'logo', hint: 'Galeria 360 — projetos em órbita, com busca' },
+    { id: 'grid', label: 'Grade', icon: 'grid', hint: 'Ver projetos em grade' },
+    { id: 'kanban', label: 'Kanban', icon: 'kanban', hint: 'Ver projetos por fase, em colunas' },
+  ];
+  function isProjectView(v) {
+    return PROJECT_VIEWS.some((pv) => pv.id === v);
+  }
 
   E.state.galleryView = localStorage.getItem('estudio-view') || 'universe';
+  // estado antigo apontando pra uma aba removida do menu volta pro Universo
+  if (E.state.galleryView === 'chat' || E.state.galleryView === 'browser') {
+    E.state.galleryView = 'universe';
+    localStorage.setItem('estudio-view', 'universe');
+  }
 
   const galleryView = document.getElementById('gallery-view');
   const universe = document.getElementById('universe-view');
   const switchEl = document.getElementById('view-switch');
+  const projectsBtn = document.getElementById('view-projects');
+  const projectsLabel = document.getElementById('view-projects-label');
+  // Chat e Navegador saíram do menu principal — vivem só dentro dos projetos
   const viewBtns = {
-    universe: document.getElementById('view-universe'),
-    grid: document.getElementById('view-grid'),
-    kanban: document.getElementById('view-kanban'),
-    chat: document.getElementById('view-chat'),
-    browser: document.getElementById('view-browser'),
+    explore: document.getElementById('view-explore'),
+    terminal: document.getElementById('view-terminal'),
   };
+  const exploreView = document.getElementById('explore-view');
   const chatView = document.getElementById('chat-view');
   const browserView = document.getElementById('browser-view');
+  const terminalView = document.getElementById('terminal-view');
   const thumb = switchEl.querySelector('.view-thumb');
 
+  // último modo de projeto usado — é o que o dropdown mostra e reabre
+  let lastProjectView = isProjectView(E.state.galleryView) ? E.state.galleryView : 'universe';
+
   function moveThumb() {
-    const active = viewBtns[E.state.galleryView] || viewBtns.grid;
+    const v = E.state.galleryView;
+    const active = isProjectView(v) ? projectsBtn : viewBtns[v] || projectsBtn;
     thumb.style.left = active.offsetLeft + 'px';
     thumb.style.width = active.offsetWidth + 'px';
   }
 
   function syncViewButtons() {
+    const v = E.state.galleryView;
+    if (isProjectView(v)) lastProjectView = v;
+    const pv = PROJECT_VIEWS.find((x) => x.id === lastProjectView) || PROJECT_VIEWS[0];
+    projectsLabel.textContent = pv.label;
+    projectsBtn.classList.toggle('active', isProjectView(v));
     Object.keys(viewBtns).forEach((k) => {
-      viewBtns[k].classList.toggle('active', E.state.galleryView === k);
+      viewBtns[k].classList.toggle('active', v === k);
     });
     requestAnimationFrame(moveThumb);
   }
@@ -53,6 +80,8 @@
   let showArchived = false;
 
   function setView(view) {
+    // clicar numa aba do menu principal de dentro de um projeto volta pra galeria
+    if (E.app && E.app.enterGallery) E.app.enterGallery();
     E.state.galleryView = view;
     localStorage.setItem('estudio-view', view);
     selecting = false;
@@ -62,6 +91,18 @@
     render();
   }
 
+  projectsBtn.addEventListener('click', () => {
+    const r = projectsBtn.getBoundingClientRect();
+    E.ui.menu(
+      r.left,
+      r.bottom + 8,
+      PROJECT_VIEWS.map((pv) => ({
+        label: pv.label,
+        icon: E.state.galleryView === pv.id ? 'check' : pv.icon,
+        onClick: () => setView(pv.id),
+      }))
+    );
+  });
   Object.keys(viewBtns).forEach((k) => {
     viewBtns[k].addEventListener('click', () => setView(k));
   });
@@ -97,23 +138,30 @@
     );
 
     galleryView.classList.toggle('universe-mode', view === 'universe');
-    galleryView.classList.toggle('chat-mode', view === 'chat' || view === 'browser');
+    galleryView.classList.toggle('chat-mode', view === 'chat' || view === 'browser' || view === 'terminal');
+    galleryView.classList.toggle('explore-mode', view === 'explore');
     grid.classList.toggle('hidden', view !== 'grid');
     grid.classList.toggle('selecting', selecting);
     board.classList.toggle('hidden', view !== 'kanban');
     universe.classList.toggle('hidden', view !== 'universe');
+    exploreView.classList.toggle('hidden', view !== 'explore');
     chatView.classList.toggle('hidden', view !== 'chat');
     browserView.classList.toggle('hidden', view !== 'browser');
+    terminalView.classList.toggle('hidden', view !== 'terminal');
 
     if (view === 'universe') {
       E.universe.render(universe, active);
     } else {
       E.universe.stop();
       universe.innerHTML = '';
-      if (view === 'chat') {
+      if (view === 'explore') {
+        E.explore.render(exploreView);
+      } else if (view === 'chat') {
         E.chat.render(chatView);
       } else if (view === 'browser') {
         E.browser.render(browserView);
+      } else if (view === 'terminal') {
+        E.terminal.render(terminalView);
       } else if (view === 'kanban') {
         E.kanban.render(board, active.filter(matchClient));
       } else {
@@ -243,7 +291,10 @@
 
   function renderGrid(projects) {
     grid.innerHTML = '';
-    if (!selecting && !showArchived) grid.appendChild(newProjectCard());
+    if (!selecting && !showArchived) {
+      grid.appendChild(newProjectCard());
+      grid.appendChild(importFolderCard());
+    }
     if (showArchived && !projects.length) {
       const empty = document.createElement('p');
       empty.className = 'grid-empty';
@@ -252,7 +303,7 @@
     }
     projects.forEach((p, i) => {
       const el = card(p);
-      el.style.setProperty('--i', i + 1);
+      el.style.setProperty('--i', i + 2);
       grid.appendChild(el);
     });
   }
@@ -358,6 +409,24 @@
       '<span class="plus-ring">' + E.icon('plus', 18) + '</span><span>Novo projeto</span>';
     el.addEventListener('click', createProject);
     return el;
+  }
+
+  /* mesmo fluxo do arrastar pasta, mas pelo diálogo nativo do sistema */
+  function importFolderCard() {
+    const el = document.createElement('button');
+    el.className = 'card card-new';
+    el.style.setProperty('--i', 1);
+    el.title = 'Escolha uma pasta do computador — ela vira um projeto vinculado, sem copiar nada';
+    el.innerHTML =
+      '<span class="plus-ring">' + E.icon('folder', 18) + '</span><span>Importar pasta</span>';
+    el.addEventListener('click', importFolder);
+    return el;
+  }
+
+  async function importFolder() {
+    const linked = await E.files.linkFolder();
+    if (!linked) return;
+    await createProjectFromLinked(linked);
   }
 
   function clientOptions() {
@@ -535,6 +604,7 @@
       E.ui.menu(e.clientX, e.clientY, [
         { label: 'Renomear', icon: 'pencil', onClick: () => renameProject(p) },
         { label: 'Cliente…', icon: 'user', onClick: () => assignClient(p) },
+        { label: 'Salvar em arquivo…', icon: 'download', onClick: () => E.projectFile.exportProject(p.id) },
         { label: 'Excluir projeto', icon: 'trash', danger: true, onClick: () => deleteProject(p) },
       ]);
     });
@@ -602,7 +672,10 @@
       E.ui.toast('⚠️ Não consegui vincular a pasta');
       return;
     }
+    await createProjectFromLinked(linked);
+  }
 
+  async function createProjectFromLinked(linked) {
     // a mesma pasta não vira dois projetos — abre o que já existe
     const all = await E.db.getAll('projects');
     const dup = all.find((p) => p.linkedFolder === linked.path);
@@ -665,5 +738,5 @@
 
   document.getElementById('btn-settings').addEventListener('click', () => E.settings.open());
 
-  E.gallery = { render, assignClient, renameProject, deleteProject };
+  E.gallery = { render, setView, importFolder, createProject, assignClient, renameProject, deleteProject };
 })();

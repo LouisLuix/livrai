@@ -25,3 +25,10 @@ photoshop-bridge.sh
 # logs e temporários
 *.log
 *.pid
+
+# cache do Python (terminal embutido)
+desktop/__pycache__/
+__pycache__/
+
+# credenciais do Google Drive (NUNCA versionar)
+desktop/drive-credentials.json

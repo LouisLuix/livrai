@@ -1,0 +1,747 @@
+{
+  "app": "livrai",
+  "kind": "project-pack",
+  "version": 1,
+  "exportedAt": 1781362800000,
+  "projects": [
+    {
+      "id": "demo-tour",
+      "name": "LIVRAI — Tour do Estúdio",
+      "type": "outro",
+      "clientId": null,
+      "stage": "ideia",
+      "createdAt": 1781362800000,
+      "updatedAt": 1781362800000,
+      "boards": [
+        {
+          "id": "b1-geral",
+          "name": "Visão geral"
+        },
+        {
+          "id": "b1-conteudo",
+          "name": "Conteúdo & Posts"
+        },
+        {
+          "id": "b1-pranchas",
+          "name": "Pranchas"
+        }
+      ],
+      "lastBoard": "b1-geral"
+    },
+    {
+      "id": "demo-aurora",
+      "name": "Café Aurora — Social Junho",
+      "type": "marca",
+      "clientId": "demo-cli-aurora",
+      "stage": "continuo",
+      "createdAt": 1781362801000,
+      "updatedAt": 1781362801000,
+      "boards": [
+        {
+          "id": "b2-cal",
+          "name": "Calendário"
+        }
+      ],
+      "lastBoard": "b2-cal"
+    },
+    {
+      "id": "demo-verao",
+      "name": "Coleção Verão — Lookbook",
+      "type": "moda",
+      "clientId": null,
+      "stage": "producao",
+      "createdAt": 1781362802000,
+      "updatedAt": 1781362802000,
+      "boards": [
+        {
+          "id": "b3-mood",
+          "name": "Moodboard"
+        }
+      ],
+      "lastBoard": "b3-mood"
+    }
+  ],
+  "items": [
+    {
+      "id": "demo-it-1",
+      "projectId": "demo-tour",
+      "board": "b1-geral",
+      "kind": "label",
+      "x": -40,
+      "y": -120,
+      "w": 600,
+      "h": 60,
+      "z": 2,
+      "content": {
+        "text": "LIVRAI — TOUR DO ESTÚDIO"
+      }
+    },
+    {
+      "id": "demo-it-2",
+      "projectId": "demo-tour",
+      "board": "b1-geral",
+      "kind": "note",
+      "x": -40,
+      "y": -30,
+      "w": 380,
+      "h": 330,
+      "z": 2,
+      "content": {
+        "text": "Bem-vindo ao tour!\n\nEste projeto é um exemplo pra você explorar o estúdio sem medo de quebrar nada.\n\n• Lá em cima ficam as ABAS deste canvas (Visão geral, Conteúdo & Posts, Pranchas). Clique pra trocar.\n• Cada aba é um espaço infinito: arraste, dê zoom, espalhe ideias.\n• Dois cliques no fundo criam uma nota.\n• Botão direito abre mais opções."
+      }
+    },
+    {
+      "id": "demo-it-3",
+      "projectId": "demo-tour",
+      "board": "b1-geral",
+      "kind": "note",
+      "x": 370,
+      "y": -30,
+      "w": 340,
+      "h": 240,
+      "z": 2,
+      "content": {
+        "text": "As visões do estúdio (barra de cima):\n\n• Universo — seus projetos em órbita\n• Grade — cards organizados\n• Kanban — por fase de entrega\n• Agenda — todos os posts num calendário só\n\nFiltros por fase e por cliente ficam abaixo do título."
+      }
+    },
+    {
+      "id": "demo-it-4",
+      "projectId": "demo-tour",
+      "board": "b1-geral",
+      "kind": "link",
+      "x": 740,
+      "y": -30,
+      "w": 250,
+      "h": 96,
+      "z": 2,
+      "content": {
+        "url": "https://instagram.com/livr_ai",
+        "title": "@livr_ai no Instagram"
+      }
+    },
+    {
+      "id": "demo-it-5",
+      "projectId": "demo-tour",
+      "board": "b1-geral",
+      "kind": "link",
+      "x": 740,
+      "y": 80,
+      "w": 250,
+      "h": 96,
+      "z": 2,
+      "content": {
+        "url": "https://github.com/LouisLuix/livrai",
+        "title": "LIVRAI no GitHub"
+      }
+    },
+    {
+      "id": "demo-it-6",
+      "projectId": "demo-tour",
+      "board": "b1-geral",
+      "kind": "label",
+      "x": -40,
+      "y": 340,
+      "w": 420,
+      "h": 44,
+      "z": 2,
+      "content": {
+        "text": "Paleta da marca"
+      }
+    },
+    {
+      "id": "demo-it-7",
+      "projectId": "demo-tour",
+      "board": "b1-geral",
+      "kind": "color",
+      "x": -40,
+      "y": 400,
+      "w": 120,
+      "h": 120,
+      "z": 2,
+      "content": {
+        "hex": "#FF5C26"
+      }
+    },
+    {
+      "id": "demo-it-8",
+      "projectId": "demo-tour",
+      "board": "b1-geral",
+      "kind": "color",
+      "x": 100,
+      "y": 400,
+      "w": 120,
+      "h": 120,
+      "z": 2,
+      "content": {
+        "hex": "#1A1A1F"
+      }
+    },
+    {
+      "id": "demo-it-9",
+      "projectId": "demo-tour",
+      "board": "b1-geral",
+      "kind": "color",
+      "x": 240,
+      "y": 400,
+      "w": 120,
+      "h": 120,
+      "z": 2,
+      "content": {
+        "hex": "#F5F1E8"
+      }
+    },
+    {
+      "id": "demo-it-10",
+      "projectId": "demo-tour",
+      "board": "b1-geral",
+      "kind": "color",
+      "x": 380,
+      "y": 400,
+      "w": 120,
+      "h": 120,
+      "z": 2,
+      "content": {
+        "hex": "#7AA2F7"
+      }
+    },
+    {
+      "id": "demo-it-11",
+      "projectId": "demo-tour",
+      "board": "b1-conteudo",
+      "kind": "label",
+      "x": -40,
+      "y": -110,
+      "w": 600,
+      "h": 50,
+      "z": 2,
+      "content": {
+        "text": "CALENDÁRIO DE CONTEÚDO"
+      }
+    },
+    {
+      "id": "demo-it-12",
+      "projectId": "demo-tour",
+      "board": "b1-conteudo",
+      "kind": "note",
+      "x": -40,
+      "y": -40,
+      "w": 320,
+      "h": 210,
+      "z": 2,
+      "content": {
+        "text": "Cada card de Post tem DATA e STATUS.\n\nClique no status pra avançar:\nIdeia → Roteiro → Gravado → Editado → Postado.\n\nTodo post com data aparece junto na AGENDA geral."
+      }
+    },
+    {
+      "id": "demo-it-13",
+      "projectId": "demo-tour",
+      "board": "b1-conteudo",
+      "kind": "post",
+      "x": 320,
+      "y": -40,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Reels: bastidores da gravação",
+        "date": "2026-06-15",
+        "status": "roteiro"
+      }
+    },
+    {
+      "id": "demo-it-14",
+      "projectId": "demo-tour",
+      "board": "b1-conteudo",
+      "kind": "post",
+      "x": 580,
+      "y": -40,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Carrossel: nova identidade",
+        "date": "2026-06-18",
+        "status": "ideia"
+      }
+    },
+    {
+      "id": "demo-it-15",
+      "projectId": "demo-tour",
+      "board": "b1-conteudo",
+      "kind": "post",
+      "x": 840,
+      "y": -40,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Vídeo: making of da campanha",
+        "date": "2026-06-20",
+        "status": "gravado"
+      }
+    },
+    {
+      "id": "demo-it-16",
+      "projectId": "demo-tour",
+      "board": "b1-conteudo",
+      "kind": "post",
+      "x": 320,
+      "y": 150,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Story: enquete com o público",
+        "date": "2026-06-22",
+        "status": "editado"
+      }
+    },
+    {
+      "id": "demo-it-17",
+      "projectId": "demo-tour",
+      "board": "b1-conteudo",
+      "kind": "post",
+      "x": 580,
+      "y": 150,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Post: depoimento de cliente",
+        "date": "2026-06-25",
+        "status": "postado"
+      }
+    },
+    {
+      "id": "demo-it-18",
+      "projectId": "demo-tour",
+      "board": "b1-conteudo",
+      "kind": "post",
+      "x": 840,
+      "y": 150,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Reels: dica rápida de edição",
+        "date": "2026-06-28",
+        "status": "ideia"
+      }
+    },
+    {
+      "id": "demo-it-19",
+      "projectId": "demo-tour",
+      "board": "b1-pranchas",
+      "kind": "label",
+      "x": -40,
+      "y": -110,
+      "w": 660,
+      "h": 50,
+      "z": 3,
+      "content": {
+        "text": "PRANCHAS PRONTAS PRA EXPORTAR"
+      }
+    },
+    {
+      "id": "demo-it-20",
+      "projectId": "demo-tour",
+      "board": "b1-pranchas",
+      "kind": "note",
+      "x": -40,
+      "y": -40,
+      "w": 300,
+      "h": 180,
+      "z": 3,
+      "content": {
+        "text": "Pranchas são molduras de formato fixo (16:9, 9:16, A4…).\n\nO que estiver dentro vira PNG ou apresentação no botão Exportar."
+      }
+    },
+    {
+      "id": "demo-it-21",
+      "projectId": "demo-tour",
+      "board": "b1-pranchas",
+      "kind": "frame",
+      "x": 300,
+      "y": -40,
+      "w": 960,
+      "h": 540,
+      "z": 1,
+      "content": {
+        "preset": "16:9",
+        "text": "Capa — Apresentação"
+      }
+    },
+    {
+      "id": "demo-it-22",
+      "projectId": "demo-tour",
+      "board": "b1-pranchas",
+      "kind": "label",
+      "x": 340,
+      "y": 10,
+      "w": 360,
+      "h": 90,
+      "z": 2,
+      "content": {
+        "text": "LIVRAI"
+      }
+    },
+    {
+      "id": "demo-it-23",
+      "projectId": "demo-tour",
+      "board": "b1-pranchas",
+      "kind": "note",
+      "x": 340,
+      "y": 130,
+      "w": 380,
+      "h": 220,
+      "z": 2,
+      "content": {
+        "text": "Estúdio visual pra quem dirige criação.\nOrganize, apresente, entregue."
+      }
+    },
+    {
+      "id": "demo-it-24",
+      "projectId": "demo-tour",
+      "board": "b1-pranchas",
+      "kind": "color",
+      "x": 980,
+      "y": 60,
+      "w": 200,
+      "h": 200,
+      "z": 2,
+      "content": {
+        "hex": "#FF5C26"
+      }
+    },
+    {
+      "id": "demo-it-25",
+      "projectId": "demo-tour",
+      "board": "b1-pranchas",
+      "kind": "frame",
+      "x": 1320,
+      "y": -40,
+      "w": 540,
+      "h": 960,
+      "z": 1,
+      "content": {
+        "preset": "9:16",
+        "text": "Story — Vertical"
+      }
+    },
+    {
+      "id": "demo-it-26",
+      "projectId": "demo-tour",
+      "board": "b1-pranchas",
+      "kind": "label",
+      "x": 1360,
+      "y": 10,
+      "w": 400,
+      "h": 70,
+      "z": 2,
+      "content": {
+        "text": "NOVIDADE"
+      }
+    },
+    {
+      "id": "demo-it-27",
+      "projectId": "demo-tour",
+      "board": "b1-pranchas",
+      "kind": "note",
+      "x": 1360,
+      "y": 110,
+      "w": 420,
+      "h": 320,
+      "z": 2,
+      "content": {
+        "text": "Formato vertical pronto pra Reels e Stories.\n\nArraste sua arte pra dentro da moldura."
+      }
+    },
+    {
+      "id": "demo-it-28",
+      "projectId": "demo-aurora",
+      "board": "b2-cal",
+      "kind": "label",
+      "x": -40,
+      "y": -110,
+      "w": 600,
+      "h": 50,
+      "z": 2,
+      "content": {
+        "text": "CAFÉ AURORA — JUNHO"
+      }
+    },
+    {
+      "id": "demo-it-29",
+      "projectId": "demo-aurora",
+      "board": "b2-cal",
+      "kind": "note",
+      "x": -40,
+      "y": -40,
+      "w": 320,
+      "h": 190,
+      "z": 2,
+      "content": {
+        "text": "Cliente fixo (marca / social media).\n\nProjeto contínuo: os posts do mês ficam aqui e também na Agenda geral."
+      }
+    },
+    {
+      "id": "demo-it-30",
+      "projectId": "demo-aurora",
+      "board": "b2-cal",
+      "kind": "post",
+      "x": 320,
+      "y": -40,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Segunda do café — dica de coado",
+        "date": "2026-06-01",
+        "status": "postado"
+      }
+    },
+    {
+      "id": "demo-it-31",
+      "projectId": "demo-aurora",
+      "board": "b2-cal",
+      "kind": "post",
+      "x": 580,
+      "y": -40,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Novo grão: Bourbon Amarelo",
+        "date": "2026-06-08",
+        "status": "editado"
+      }
+    },
+    {
+      "id": "demo-it-32",
+      "projectId": "demo-aurora",
+      "board": "b2-cal",
+      "kind": "post",
+      "x": 840,
+      "y": -40,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Live com barista convidado",
+        "date": "2026-06-12",
+        "status": "gravado"
+      }
+    },
+    {
+      "id": "demo-it-33",
+      "projectId": "demo-aurora",
+      "board": "b2-cal",
+      "kind": "post",
+      "x": 320,
+      "y": 150,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Promo: combo da tarde",
+        "date": "2026-06-19",
+        "status": "roteiro"
+      }
+    },
+    {
+      "id": "demo-it-34",
+      "projectId": "demo-aurora",
+      "board": "b2-cal",
+      "kind": "post",
+      "x": 580,
+      "y": 150,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Bastidores da torra",
+        "date": "2026-06-24",
+        "status": "ideia"
+      }
+    },
+    {
+      "id": "demo-it-35",
+      "projectId": "demo-aurora",
+      "board": "b2-cal",
+      "kind": "post",
+      "x": 840,
+      "y": 150,
+      "w": 240,
+      "h": 150,
+      "z": 2,
+      "content": {
+        "text": "Aniversário da loja",
+        "date": "2026-06-30",
+        "status": "ideia"
+      }
+    },
+    {
+      "id": "demo-it-36",
+      "projectId": "demo-verao",
+      "board": "b3-mood",
+      "kind": "label",
+      "x": -40,
+      "y": -110,
+      "w": 660,
+      "h": 50,
+      "z": 2,
+      "content": {
+        "text": "COLEÇÃO VERÃO — LOOKBOOK"
+      }
+    },
+    {
+      "id": "demo-it-37",
+      "projectId": "demo-verao",
+      "board": "b3-mood",
+      "kind": "note",
+      "x": -40,
+      "y": -40,
+      "w": 320,
+      "h": 200,
+      "z": 2,
+      "content": {
+        "text": "Projeto de Moda em produção.\n\nMoodboard com paleta, referências e uma prancha A4 pra capa do lookbook."
+      }
+    },
+    {
+      "id": "demo-it-38",
+      "projectId": "demo-verao",
+      "board": "b3-mood",
+      "kind": "label",
+      "x": -40,
+      "y": 190,
+      "w": 300,
+      "h": 40,
+      "z": 2,
+      "content": {
+        "text": "Paleta"
+      }
+    },
+    {
+      "id": "demo-it-39",
+      "projectId": "demo-verao",
+      "board": "b3-mood",
+      "kind": "color",
+      "x": -40,
+      "y": 250,
+      "w": 120,
+      "h": 120,
+      "z": 2,
+      "content": {
+        "hex": "#E9C46A"
+      }
+    },
+    {
+      "id": "demo-it-40",
+      "projectId": "demo-verao",
+      "board": "b3-mood",
+      "kind": "color",
+      "x": 100,
+      "y": 250,
+      "w": 120,
+      "h": 120,
+      "z": 2,
+      "content": {
+        "hex": "#2A9D8F"
+      }
+    },
+    {
+      "id": "demo-it-41",
+      "projectId": "demo-verao",
+      "board": "b3-mood",
+      "kind": "color",
+      "x": 240,
+      "y": 250,
+      "w": 120,
+      "h": 120,
+      "z": 2,
+      "content": {
+        "hex": "#E76F51"
+      }
+    },
+    {
+      "id": "demo-it-42",
+      "projectId": "demo-verao",
+      "board": "b3-mood",
+      "kind": "color",
+      "x": 380,
+      "y": 250,
+      "w": 120,
+      "h": 120,
+      "z": 2,
+      "content": {
+        "hex": "#264653"
+      }
+    },
+    {
+      "id": "demo-it-43",
+      "projectId": "demo-verao",
+      "board": "b3-mood",
+      "kind": "frame",
+      "x": 360,
+      "y": -40,
+      "w": 794,
+      "h": 1123,
+      "z": 1,
+      "content": {
+        "preset": "A4",
+        "text": "Lookbook — Capa"
+      }
+    },
+    {
+      "id": "demo-it-44",
+      "projectId": "demo-verao",
+      "board": "b3-mood",
+      "kind": "label",
+      "x": 400,
+      "y": 10,
+      "w": 520,
+      "h": 80,
+      "z": 2,
+      "content": {
+        "text": "VERÃO 2026"
+      }
+    },
+    {
+      "id": "demo-it-45",
+      "projectId": "demo-verao",
+      "board": "b3-mood",
+      "kind": "note",
+      "x": 400,
+      "y": 120,
+      "w": 600,
+      "h": 260,
+      "z": 2,
+      "content": {
+        "text": "Coleção cápsula — tons de praia e terra.\nLinho, algodão e muito sol."
+      }
+    },
+    {
+      "id": "demo-it-46",
+      "projectId": "demo-verao",
+      "board": "b3-mood",
+      "kind": "color",
+      "x": 400,
+      "y": 420,
+      "w": 300,
+      "h": 300,
+      "z": 2,
+      "content": {
+        "hex": "#E9C46A"
+      }
+    }
+  ],
+  "clients": [
+    {
+      "id": "demo-cli-aurora",
+      "name": "Café Aurora",
+      "createdAt": 1781362800000
+    }
+  ],
+  "blobs": []
+}

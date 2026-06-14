@@ -95,11 +95,20 @@
       empty.className = 'uni-empty';
       empty.innerHTML =
         '<p class="hint-big">Universo vazio</p><p>Crie seu primeiro projeto pra ele orbitar por aqui.</p>';
+      const actions = document.createElement('div');
+      actions.className = 'uni-empty-actions';
       const btn = document.createElement('button');
       btn.className = 'btn primary';
       E.setLabel(btn, 'plus', 'Novo projeto');
-      btn.addEventListener('click', () => document.getElementById('view-grid').click());
-      empty.appendChild(btn);
+      btn.addEventListener('click', () => E.gallery.createProject());
+      const imp = document.createElement('button');
+      imp.className = 'btn ghost';
+      E.setLabel(imp, 'folder', 'Importar pasta');
+      imp.title = 'Escolha uma pasta do computador — vira um projeto vinculado, sem copiar nada';
+      imp.addEventListener('click', () => E.gallery.importFolder());
+      actions.appendChild(btn);
+      actions.appendChild(imp);
+      empty.appendChild(actions);
       container.appendChild(empty);
       return;
     }
@@ -185,8 +194,17 @@
         }))
       );
     });
+    const importBtn = document.createElement('button');
+    importBtn.className = 'uni-filter-btn';
+    importBtn.innerHTML = E.icon('folder', 15);
+    importBtn.title = 'Importar pasta do computador — vira um projeto vinculado, como se fosse arrastada';
+    importBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      E.gallery.importFolder();
+    });
     search.appendChild(input);
     search.appendChild(filterBtn);
+    search.appendChild(importBtn);
     search.appendChild(count);
     container.appendChild(search);
 

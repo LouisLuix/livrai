@@ -1,8 +1,18 @@
-/* Inicialização e navegação entre galeria e canvas */
+/* Inicialização e navegação entre galeria e canvas.
+   O menu principal (topbar) é casca fixa: nunca some. Os projetos abertos
+   viram abas na faixa #project-tabs, logo abaixo do menu — dá pra ter vários
+   abertos e pular entre eles, e a faixa continua visível na galeria
+   (Universo/Grade/Kanban) pra voltar pra dentro com um clique. */
 (function () {
   const E = window.Estudio;
   const galleryView = document.getElementById('gallery-view');
   const canvasView = document.getElementById('canvas-view');
+  const tabsEl = document.getElementById('project-tabs');
+
+  const openTabs = []; // [{ id, name }] projetos abertos, na ordem das abas
+  let loadedId = null; // projeto carregado no canvas (vivo na memória)
+  let mode = 'gallery'; // 'gallery' | 'canvas'
+  let tabsCollapsed = localStorage.getItem('estudio-tabs-collapsed') === '1'; // faixa retraída?
 
   async function openProject(id) {
     const project = await E.db.get('projects', id);
@@ -10,17 +20,115 @@
       E.ui.toast('Projeto não encontrado');
       return;
     }
-    const items = await E.db.itemsByProject(id);
+    const tab = openTabs.find((t) => t.id === id);
+    if (tab) tab.name = project.name;
+    else openTabs.push({ id: id, name: project.name });
+
+    // já carregado? só reexibe — preserva zoom/itens sem recarregar do disco
+    if (loadedId !== id) {
+      const items = await E.db.itemsByProject(id);
+      E.canvas.open(project, items);
+      loadedId = id;
+    }
+    mode = 'canvas';
     galleryView.classList.add('hidden');
     canvasView.classList.remove('hidden');
-    E.canvas.open(project, items);
+    renderTabs();
+  }
+
+  /* troca o conteúdo pra galeria sem mexer nas abas nem recarregar a grade */
+  function enterGallery() {
+    mode = 'gallery';
+    canvasView.classList.add('hidden');
+    galleryView.classList.remove('hidden');
+    renderTabs();
   }
 
   function showGallery() {
-    E.canvas.close();
-    canvasView.classList.add('hidden');
-    galleryView.classList.remove('hidden');
+    enterGallery();
     E.gallery.render();
+  }
+
+  function closeTab(id) {
+    const i = openTabs.findIndex((t) => t.id === id);
+    if (i < 0) return;
+    openTabs.splice(i, 1);
+    if (loadedId === id) {
+      E.canvas.close();
+      loadedId = null;
+    }
+    // fechou o que estava aberto: abre um vizinho ou cai na galeria
+    if (mode === 'canvas') {
+      const next = openTabs[Math.min(i, openTabs.length - 1)];
+      if (next) {
+        openProject(next.id);
+        return;
+      }
+      showGallery();
+      return;
+    }
+    renderTabs();
+  }
+
+  function setTabName(id, name) {
+    const tab = openTabs.find((t) => t.id === id);
+    if (tab && name) {
+      tab.name = name;
+      renderTabs();
+    }
+  }
+
+  function renderTabs() {
+    document.body.classList.toggle('in-project', mode === 'canvas');
+    if (!openTabs.length) {
+      tabsEl.classList.add('hidden');
+      tabsEl.innerHTML = '';
+      return;
+    }
+    tabsEl.classList.remove('hidden');
+    tabsEl.classList.toggle('collapsed', tabsCollapsed);
+    tabsEl.innerHTML = '';
+
+    const list = document.createElement('div');
+    list.className = 'proj-tabs-list';
+    openTabs.forEach((t) => {
+      const el = document.createElement('button');
+      el.className = 'proj-tab' + (mode === 'canvas' && t.id === loadedId ? ' active' : '');
+      el.title = t.name;
+      const dot = document.createElement('span');
+      dot.className = 'proj-tab-dot';
+      el.appendChild(dot);
+      const nm = document.createElement('span');
+      nm.className = 'proj-tab-name';
+      nm.textContent = t.name;
+      el.appendChild(nm);
+      const x = document.createElement('span');
+      x.className = 'proj-tab-close';
+      x.innerHTML = E.icon('close', 11);
+      x.title = 'Fechar projeto';
+      x.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        closeTab(t.id);
+      });
+      el.appendChild(x);
+      el.addEventListener('click', () => openProject(t.id));
+      list.appendChild(el);
+    });
+    tabsEl.appendChild(list);
+
+    // alça discreta pra recolher/mostrar a faixa (recolhe pra cima)
+    const toggle = document.createElement('button');
+    toggle.className = 'proj-tabs-toggle' + (tabsCollapsed ? '' : ' up');
+    toggle.title = tabsCollapsed
+      ? 'Mostrar projetos abertos (' + openTabs.length + ')'
+      : 'Recolher projetos abertos';
+    toggle.innerHTML = E.icon('chevron-down', 13);
+    toggle.addEventListener('click', () => {
+      tabsCollapsed = !tabsCollapsed;
+      localStorage.setItem('estudio-tabs-collapsed', tabsCollapsed ? '1' : '0');
+      renderTabs();
+    });
+    tabsEl.appendChild(toggle);
   }
 
   document.getElementById('btn-back').addEventListener('click', showGallery);
@@ -103,6 +211,12 @@
         (b.productRefs || []).forEach((id) => used.add(id));
         (b.entities || []).forEach((en) => (en.refs || []).forEach((id) => used.add(id)));
       }
+      // imagens coladas dentro das Notas (blocos de imagem)
+      if (p.notes && Array.isArray(p.notes.pages)) {
+        p.notes.pages.forEach((pg) =>
+          (pg.blocks || []).forEach((bl) => bl && bl.blobId && used.add(bl.blobId))
+        );
+      }
     });
     for (const b of blobs) {
       if (!used.has(b.id)) await E.db.del('blobs', b.id);
@@ -176,6 +290,6 @@
     }
   }
 
-  E.app = { openProject, showGallery };
+  E.app = { openProject, showGallery, enterGallery, setTabName, closeProject: closeTab };
   boot();
 })();

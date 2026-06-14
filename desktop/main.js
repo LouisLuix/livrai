@@ -9,7 +9,12 @@ const fs = require('fs');
 const os = require('os');
 const http = require('http');
 const https = require('https');
-const { exec, execFile } = require('child_process');
+const { exec, execFile, spawn } = require('child_process');
+
+// O login "Continuar com o Google" dos sites (Pinterest etc.) usa FedCM,
+// que fica MUDO em apps embutidos sem conta Google no perfil. Desligado,
+// o botão volta pro popup clássico — que o navegador embutido permite.
+app.commandLine.appendSwitch('disable-features', 'FedCm,FedCmIdPRegistration');
 
 // Identidade de navegador comum — sem isso o Google bloqueia o login
 app.userAgentFallback = app.userAgentFallback
@@ -238,6 +243,72 @@ function handleStudio(req, res, u) {
     return;
   }
 
+  // ---------- Google Drive pessoal ----------
+  if (u.pathname === '/__studio/drive-status' && req.method === 'GET') {
+    const t = driveLoad();
+    return json(200, { connected: !!(t && t.refresh_token), email: (t && t.email) || '' });
+  }
+  if (u.pathname === '/__studio/drive-connect' && req.method === 'POST') {
+    if (!driveConfigured()) {
+      return json(503, { error: 'Integração com o Google Drive não configurada nesta versão.' });
+    }
+    startDriveAuth();
+    return json(200, { ok: true });
+  }
+  if (u.pathname === '/__studio/drive-disconnect' && req.method === 'POST') {
+    try { fs.unlinkSync(DRIVE_FILE()); } catch (_) {}
+    return json(200, { ok: true });
+  }
+  if (u.pathname === '/__studio/drive-upload' && req.method === 'POST') {
+    const proj = String(u.searchParams.get('project') || 'Projeto');
+    const fname = safeFileName(u.searchParams.get('name'));
+    const mime = String(u.searchParams.get('type') || 'application/octet-stream');
+    const parts = [];
+    req.on('data', (c) => parts.push(c));
+    req.on('end', async () => {
+      try {
+        const token = await driveToken();
+        if (!token) return json(401, { error: 'Drive não conectado' });
+        const livrai = await driveFolder(token, 'Livrai', null);
+        const projetos = await driveFolder(token, 'Projetos', livrai);
+        const folder = await driveFolder(token, proj, projetos);
+        const out = await driveUpload(token, folder, fname, Buffer.concat(parts), mime);
+        json(200, out);
+      } catch (e) {
+        json(500, { error: String(e && e.message ? e.message : e) });
+      }
+    });
+    return;
+  }
+
+  if (u.pathname === '/__studio/calendar-status' && req.method === 'GET') {
+    const t = calLoad();
+    return json(200, { connected: !!(t && t.refresh_token), email: (t && t.email) || '' });
+  }
+  if (u.pathname === '/__studio/calendar-connect' && req.method === 'POST') {
+    startCalAuth();
+    return json(200, { ok: true });
+  }
+  if (u.pathname === '/__studio/calendar-disconnect' && req.method === 'POST') {
+    try { fs.unlinkSync(CAL_FILE()); } catch (_) {}
+    return json(200, { ok: true });
+  }
+  if (u.pathname === '/__studio/calendar-events' && req.method === 'GET') {
+    const from = String(u.searchParams.get('from') || '');
+    const to = String(u.searchParams.get('to') || '');
+    (async () => {
+      try {
+        const token = await calToken();
+        if (!token) return json(401, { error: 'Calendar não conectado' });
+        const events = await calEvents(token, from, to);
+        json(200, { events: events });
+      } catch (e) {
+        json(500, { error: String(e && e.message ? e.message : e) });
+      }
+    })();
+    return;
+  }
+
   // baixa uma imagem da web pro app (o processo principal não tem CORS) —
   // usado pelo "Guardar imagem no projeto" do navegador embutido
   if (u.pathname === '/__studio/fetch-url' && req.method === 'GET') {
@@ -429,6 +500,10 @@ function startAppServer() {
     const u = new URL(req.url, 'http://localhost');
     if (u.pathname.startsWith('/__studio')) {
       handleStudio(req, res, u);
+      return;
+    }
+    if (u.pathname === '/__gauth') {
+      handleGAuth(req, res, u);
       return;
     }
     if (u.pathname === '/__auth') {
@@ -694,12 +769,297 @@ function createWindow() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+/* ---------- Google Drive (nuvem PESSOAL do usuário) ----------
+   Cada usuário autoriza a própria conta numa janela do app; o token fica
+   cifrado no computador dele (safeStorage). Escopo drive.file: o app só
+   enxerga o que ele mesmo criar no Drive da pessoa. */
+// Credenciais do Google Drive (app desktop). NÃO ficam no repositório: são
+// lidas de variáveis de ambiente ou de um arquivo local gitignored
+// (desktop/drive-credentials.json) — embarcado só nos builds de release.
+// Sem credenciais, a integração com o Drive fica indisponível (degrada).
+function loadDriveClient() {
+  if (process.env.LIVRAI_DRIVE_ID && process.env.LIVRAI_DRIVE_SECRET) {
+    return { id: process.env.LIVRAI_DRIVE_ID, secret: process.env.LIVRAI_DRIVE_SECRET };
+  }
+  const candidates = [
+    path.join(__dirname, 'drive-credentials.json'),
+    path.join(process.resourcesPath || __dirname, 'drive-credentials.json'),
+  ];
+  for (const p of candidates) {
+    try {
+      const c = JSON.parse(fs.readFileSync(p, 'utf8'));
+      if (c && c.id && c.secret) return { id: c.id, secret: c.secret };
+    } catch (_) {}
+  }
+  return { id: '', secret: '' };
+}
+const DRIVE_CLIENT = loadDriveClient();
+const driveConfigured = () => !!(DRIVE_CLIENT.id && DRIVE_CLIENT.secret);
+const DRIVE_FILE = () => path.join(app.getPath('userData'), 'livrai-drive.bin');
+let driveAuthWin = null;
+
+function driveLoad() {
+  try {
+    const buf = fs.readFileSync(DRIVE_FILE());
+    const txt = safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(buf) : buf.toString('utf8');
+    return JSON.parse(txt);
+  } catch (_) {
+    return null;
+  }
+}
+
+function driveSave(tokens) {
+  const txt = JSON.stringify(tokens);
+  const buf = safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(txt) : Buffer.from(txt, 'utf8');
+  fs.writeFileSync(DRIVE_FILE(), buf);
+}
+
+function httpsJson(url, options, body) {
+  if (body) {
+    options.headers = options.headers || {};
+    options.headers['Content-Length'] = Buffer.isBuffer(body) ? body.length : Buffer.byteLength(body);
+  }
+  return new Promise((resolve, reject) => {
+    const r = https.request(url, options, (res) => {
+      let data = '';
+      res.on('data', (c) => (data += c));
+      res.on('end', () => {
+        try {
+          resolve({ status: res.statusCode, json: JSON.parse(data || '{}') });
+        } catch (e) {
+          resolve({ status: res.statusCode, json: {} });
+        }
+      });
+    });
+    r.on('error', reject);
+    if (body) r.write(body);
+    r.end();
+  });
+}
+
+async function driveToken() {
+  const t = driveLoad();
+  if (!t || !t.refresh_token) return null;
+  if (t.access_token && t.expires_at && Date.now() < t.expires_at - 60000) return t.access_token;
+  const body =
+    'client_id=' + encodeURIComponent(DRIVE_CLIENT.id) +
+    '&client_secret=' + encodeURIComponent(DRIVE_CLIENT.secret) +
+    '&refresh_token=' + encodeURIComponent(t.refresh_token) +
+    '&grant_type=refresh_token';
+  const r = await httpsJson('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  }, body);
+  if (!r.json.access_token) return null;
+  t.access_token = r.json.access_token;
+  t.expires_at = Date.now() + (r.json.expires_in || 3500) * 1000;
+  driveSave(t);
+  return t.access_token;
+}
+
+async function driveApi(method, url, token, body, contentType) {
+  return httpsJson(url, {
+    method: method,
+    headers: Object.assign(
+      { Authorization: 'Bearer ' + token },
+      body ? { 'Content-Type': contentType || 'application/json' } : {}
+    ),
+  }, body);
+}
+
+/* acha (ou cria) a cadeia Livrai/Projetos/<projeto> e devolve o id da ponta */
+async function driveFolder(token, name, parentId) {
+  const q = encodeURIComponent(
+    "name='" + name.replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false and '" +
+    (parentId || 'root') + "' in parents"
+  );
+  const list = await driveApi('GET', 'https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)', token);
+  if (list.json.error) throw new Error('Drive: ' + (list.json.error.message || list.status));
+  if (list.json.files && list.json.files.length) return list.json.files[0].id;
+  const made = await driveApi('POST', 'https://www.googleapis.com/drive/v3/files?fields=id', token,
+    JSON.stringify({ name: name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId || 'root'] }));
+  if (!made.json.id) throw new Error('Drive (pasta): ' + ((made.json.error && made.json.error.message) || made.status));
+  return made.json.id;
+}
+
+async function driveUpload(token, folderId, name, buf, mime) {
+  // mesmo nome na pasta? vira NOVA VERSÃO do mesmo arquivo (histórico do Drive)
+  const q = encodeURIComponent("name='" + name.replace(/'/g, "\\'") + "' and trashed=false and '" + folderId + "' in parents");
+  const list = await driveApi('GET', 'https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)', token);
+  const existing = list.json.files && list.json.files[0];
+  if (existing) {
+    const up = await httpsJson(
+      'https://www.googleapis.com/upload/drive/v3/files/' + existing.id + '?uploadType=media&fields=id,webViewLink',
+      { method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': mime } }, buf);
+    return { id: existing.id, link: up.json.webViewLink, version: true };
+  }
+  const boundary = 'livrai' + Date.now();
+  const meta = JSON.stringify({ name: name, parents: [folderId] });
+  const body = Buffer.concat([
+    Buffer.from('--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + meta + '\r\n--' + boundary + '\r\nContent-Type: ' + mime + '\r\n\r\n'),
+    buf,
+    Buffer.from('\r\n--' + boundary + '--'),
+  ]);
+  const up = await httpsJson(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+    { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'multipart/related; boundary=' + boundary } }, body);
+  if (!up.json.id) throw new Error('Drive (upload): ' + ((up.json.error && up.json.error.message) || up.status));
+  return { id: up.json.id, link: up.json.webViewLink, version: false };
+}
+
+function startDriveAuth() {
+  const redirect = 'http://127.0.0.1:' + APP_PORT + '/__gauth';
+  const url =
+    'https://accounts.google.com/o/oauth2/v2/auth?client_id=' + encodeURIComponent(DRIVE_CLIENT.id) +
+    '&redirect_uri=' + encodeURIComponent(redirect) +
+    '&response_type=code&scope=' + encodeURIComponent('https://www.googleapis.com/auth/drive.file') +
+    '&access_type=offline&prompt=consent&state=drive';
+  // navegador EXTERNO: quem já está logado no Google só confirma com 1 clique
+  shell.openExternal(url);
+}
+
+async function handleGAuth(req, res, u) {
+  const code = u.searchParams.get('code');
+  const state = u.searchParams.get('state') || 'drive';
+  const label = state === 'calendar' ? 'Google Calendar conectado' : 'Drive conectado';
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end('<body style="background:#0a0a0b;color:#e8e8ec;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:95vh"><p>' +
+    (code ? label + ' — pode voltar pro LIVRAI.' : 'Autorização cancelada.') + '</p></body>');
+  if (driveAuthWin) { setTimeout(() => { try { driveAuthWin.close(); } catch (_) {} }, 900); }
+  if (!code) return;
+  try {
+    const body =
+      'code=' + encodeURIComponent(code) +
+      '&client_id=' + encodeURIComponent(DRIVE_CLIENT.id) +
+      '&client_secret=' + encodeURIComponent(DRIVE_CLIENT.secret) +
+      '&redirect_uri=' + encodeURIComponent('http://127.0.0.1:' + APP_PORT + '/__gauth') +
+      '&grant_type=authorization_code';
+    const r = await httpsJson('https://oauth2.googleapis.com/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    }, body);
+    if (!r.json.refresh_token && !r.json.access_token) return;
+    const tokens = {
+      refresh_token: r.json.refresh_token,
+      access_token: r.json.access_token,
+      expires_at: Date.now() + (r.json.expires_in || 3500) * 1000,
+    };
+    if (state === 'calendar') {
+      // o id do calendário "primary" É o e-mail da conta — sem escopo extra
+      const who = await driveApi('GET', 'https://www.googleapis.com/calendar/v3/calendars/primary?fields=id', tokens.access_token);
+      tokens.email = (who.json && who.json.id) || '';
+      calSave(tokens);
+    } else {
+      const who = await driveApi('GET', 'https://www.googleapis.com/drive/v3/about?fields=user', tokens.access_token);
+      tokens.email = (who.json.user && who.json.user.emailAddress) || '';
+      driveSave(tokens);
+    }
+  } catch (_) {}
+}
+
+/* ---------- Google Calendar (só leitura) ----------
+   Mesmo cliente OAuth do Drive, escopo calendar.readonly, token cifrado
+   à parte (livrai-calendar.bin). A Agenda do app puxa os eventos do mês
+   visível pra exibir junto com os posts dos projetos. */
+const CAL_FILE = () => path.join(app.getPath('userData'), 'livrai-calendar.bin');
+
+function calLoad() {
+  try {
+    const buf = fs.readFileSync(CAL_FILE());
+    const txt = safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(buf) : buf.toString('utf8');
+    return JSON.parse(txt);
+  } catch (_) {
+    return null;
+  }
+}
+
+function calSave(tokens) {
+  const txt = JSON.stringify(tokens);
+  const buf = safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(txt) : Buffer.from(txt, 'utf8');
+  fs.writeFileSync(CAL_FILE(), buf);
+}
+
+async function calToken() {
+  const t = calLoad();
+  if (!t || !t.refresh_token) return null;
+  if (t.access_token && t.expires_at && Date.now() < t.expires_at - 60000) return t.access_token;
+  const body =
+    'client_id=' + encodeURIComponent(DRIVE_CLIENT.id) +
+    '&client_secret=' + encodeURIComponent(DRIVE_CLIENT.secret) +
+    '&refresh_token=' + encodeURIComponent(t.refresh_token) +
+    '&grant_type=refresh_token';
+  const r = await httpsJson('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  }, body);
+  if (!r.json.access_token) return null;
+  t.access_token = r.json.access_token;
+  t.expires_at = Date.now() + (r.json.expires_in || 3500) * 1000;
+  calSave(t);
+  return t.access_token;
+}
+
+function startCalAuth() {
+  const redirect = 'http://127.0.0.1:' + APP_PORT + '/__gauth';
+  const url =
+    'https://accounts.google.com/o/oauth2/v2/auth?client_id=' + encodeURIComponent(DRIVE_CLIENT.id) +
+    '&redirect_uri=' + encodeURIComponent(redirect) +
+    '&response_type=code&scope=' + encodeURIComponent('https://www.googleapis.com/auth/calendar.readonly') +
+    '&access_type=offline&prompt=consent&state=calendar';
+  shell.openExternal(url);
+}
+
+/* eventos de todos os calendários selecionados no intervalo [from, to] (ISO) */
+async function calEvents(token, fromIso, toIso) {
+  const listed = await driveApi(
+    'GET',
+    'https://www.googleapis.com/calendar/v3/users/me/calendarList?fields=items(id,summary,backgroundColor,selected)',
+    token
+  );
+  if (listed.json.error) throw new Error('Calendar: ' + (listed.json.error.message || listed.status));
+  const cals = (listed.json.items || []).filter((c) => c.selected !== false).slice(0, 25);
+  const out = [];
+  for (const cal of cals) {
+    const q =
+      'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(cal.id) +
+      '/events?singleEvents=true&orderBy=startTime&maxResults=250' +
+      '&timeMin=' + encodeURIComponent(fromIso) +
+      '&timeMax=' + encodeURIComponent(toIso) +
+      '&fields=items(id,summary,start,end,htmlLink)';
+    const ev = await driveApi('GET', q, token);
+    (ev.json.items || []).forEach((e) => {
+      const allDay = !!(e.start && e.start.date);
+      out.push({
+        id: e.id,
+        title: e.summary || '(sem título)',
+        allDay: allDay,
+        start: (e.start && (e.start.dateTime || e.start.date)) || '',
+        end: (e.end && (e.end.dateTime || e.end.date)) || '',
+        link: e.htmlLink || '',
+        calendar: cal.summary || '',
+        color: cal.backgroundColor || '#7aa2f7',
+      });
+    });
+  }
+  return out;
+}
+
 /* Navegador embutido: links _blank navegam na própria guia, e o print
    da página é tirado aqui no processo principal (via ponte do preload) */
 app.on('web-contents-created', (e, contents) => {
   if (contents.getType() === 'webview') {
     contents.setWindowOpenHandler(({ url }) => {
-      if (/^https?:/i.test(url)) contents.loadURL(url);
+      // popups de LOGIN (Google/Facebook/Apple/OAuth) precisam ser janelas de
+      // verdade: eles conversam com a página que os abriu e herdam a sessão
+      // do navegador embutido — logou no popup, está logado na guia
+      const isAuth = !url || url === 'about:blank' ||
+        /accounts\.google\.|facebook\.com\/(login|dialog|oauth)|appleid\.apple\.|login\.microsoftonline|\/oauth|\/authorize|\/signin/i.test(url);
+      if (isAuth) {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: { width: 520, height: 680, autoHideMenuBar: true },
+        };
+      }
+      if (/^https?:/i.test(url)) contents.loadURL(url); // link comum: navega na própria guia
       return { action: 'deny' };
     });
   }
@@ -710,6 +1070,88 @@ ipcMain.handle('livrai-capture-webview', async (e, wcId) => {
   if (!wc || wc.getType() !== 'webview') return null;
   const img = await wc.capturePage();
   return img.toDataURL();
+});
+
+/* ---------- Terminal embutido (visão Terminal) ----------
+   PTY sem módulo nativo: o wrapper livrai-term.py (Python, que já vem no macOS)
+   cria o pseudo-terminal e repassa teclado/tela por pipes; redimensionar
+   chega por um canal de controle (fd 3). No Windows, sem pty, o
+   PowerShell roda em modo simples — funciona, mas sem apps de tela cheia. */
+const termSessions = new Map();
+let termSeq = 0;
+
+ipcMain.handle('livrai-term-create', (e, opts) => {
+  const cols = Math.max(20, (opts && opts.cols) || 80);
+  const rows = Math.max(5, (opts && opts.rows) || 24);
+  // aba pode nascer na pasta de um projeto — mas só em caminho autorizado
+  let cwd = studioRoot();
+  const want = opts && opts.cwd ? authorizedAbs(opts.cwd) : null;
+  if (want) {
+    try { fs.mkdirSync(want, { recursive: true }); } catch (_) {}
+    if (fs.existsSync(want)) cwd = want;
+  }
+  const env = Object.assign({}, process.env, { TERM: 'xterm-256color' });
+  let child;
+  if (process.platform === 'win32') {
+    child = spawn('powershell.exe', ['-NoLogo'], { cwd: cwd, env: env });
+  } else {
+    const shell = process.env.SHELL || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash');
+    // empacotado, o script fica fora do asar (asarUnpack) — corrige o caminho;
+    // em dev (sem app.asar) o replace não faz nada
+    const termScript = path.join(__dirname, 'livrai-term.py').replace(/app\.asar([\/\\])/, 'app.asar.unpacked$1');
+    child = spawn('python3', [termScript, shell, String(cols), String(rows)], {
+      cwd: cwd,
+      env: env,
+      stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
+    });
+  }
+
+  const id = ++termSeq;
+  const sender = e.sender;
+  termSessions.set(id, child);
+
+  const relay = (d) => {
+    try { sender.send('livrai-term-data', { id: id, data: d }); } catch (_) {}
+  };
+  child.stdout.on('data', relay);
+  if (child.stderr) child.stderr.on('data', relay);
+  child.on('exit', (code) => {
+    termSessions.delete(id);
+    try { sender.send('livrai-term-exit', { id: id, code: code }); } catch (_) {}
+  });
+  child.on('error', () => {
+    termSessions.delete(id);
+    try { sender.send('livrai-term-exit', { id: id, code: -1 }); } catch (_) {}
+  });
+  return { id: id, cwd: cwd };
+});
+
+ipcMain.on('livrai-term-input', (e, m) => {
+  const s = termSessions.get(m && m.id);
+  if (s && s.stdin && s.stdin.writable) s.stdin.write(m.data);
+});
+
+ipcMain.on('livrai-term-resize', (e, m) => {
+  const s = termSessions.get(m && m.id);
+  if (!s) return;
+  const ctl = s.stdio && s.stdio[3];
+  if (ctl && ctl.writable) {
+    ctl.write(JSON.stringify({ cols: m.cols, rows: m.rows }) + '\n');
+  }
+});
+
+ipcMain.on('livrai-term-kill', (e, id) => {
+  const s = termSessions.get(id);
+  if (!s) return;
+  termSessions.delete(id);
+  try { s.kill(); } catch (_) {}
+});
+
+app.on('quit', () => {
+  for (const s of termSessions.values()) {
+    try { s.kill(); } catch (_) {}
+  }
+  termSessions.clear();
 });
 
 app.whenReady().then(async () => {

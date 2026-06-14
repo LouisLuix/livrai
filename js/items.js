@@ -595,8 +595,11 @@
       open.type = 'button';
       open.className = 'item-action file-open';
       E.setLabel(open, 'eye', 'Explorar');
-      open.title = 'Navegar nesta pasta sem sair do Estúdio';
-      open.addEventListener('click', () => E.explorer.open(c.path, c.name));
+      open.title = 'Ver o conteúdo da pasta — duplo clique no card abre o explorador completo';
+      open.addEventListener('click', (e) => {
+        e.stopPropagation();
+        E.explorer.dropdown(open, c.path, c.name);
+      });
       body.appendChild(ic);
       body.appendChild(nm);
       body.appendChild(inf);
@@ -693,9 +696,14 @@
 
   function inlineFmt(s) {
     return E.escapeHtml(s)
+      .replace(/\[([^\]]+)\]\((https?:[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/~~([^~]+)~~/g, '<s>$1</s>')
+      .replace(/__([^_]+)__/g, '<u>$1</u>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/\*([^*]+)\*/g, '<em>$1</em>');
   }
+  E.inlineFmt = inlineFmt;
 
   const TODO_RE = /^\[(x|X| )?\]\s?(.*)$/;
 
@@ -784,9 +792,22 @@
         'A página desta nota foi excluída das Notas. Botão direito → Desvincular pra editar aqui.';
     } else {
       (page.blocks || []).forEach((b) => {
-        if (b.type === 'divider') holder.appendChild(noteRow('note-hr'));
+        if (b.type === 'image') {
+          const fig = document.createElement('div');
+          fig.className = 'note-img' + (b.w ? ' w-' + b.w : '');
+          const im = document.createElement('img');
+          im.alt = '';
+          im.draggable = false;
+          if (b.blobId) E.db.blobUrl(b.blobId).then((u) => { if (u) im.src = u; });
+          fig.appendChild(im);
+          holder.appendChild(fig);
+        } else if (b.type === 'divider') holder.appendChild(noteRow('note-hr'));
         else if (b.type === 'h1') holder.appendChild(noteRow('note-h1', inlineFmt(b.text)));
         else if (b.type === 'h2') holder.appendChild(noteRow('note-h2', inlineFmt(b.text)));
+        else if (b.type === 'h3') holder.appendChild(noteRow('note-h3', inlineFmt(b.text)));
+        else if (b.type === 'quote') holder.appendChild(noteRow('note-quote', inlineFmt(b.text)));
+        else if (b.type === 'callout') holder.appendChild(noteRow('note-callout', inlineFmt(b.text)));
+        else if (b.type === 'code') holder.appendChild(noteRow('note-code', E.escapeHtml(b.text)));
         else if (b.type === 'li') holder.appendChild(noteBullet(inlineFmt(b.text)));
         else if (b.type === 'todo') {
           holder.appendChild(

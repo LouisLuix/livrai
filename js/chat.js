@@ -591,4 +591,49 @@
     current = chats.find((c) => c.id === lastId) || chats[0];
     renderAll();
   };
+
+  /* ---------- painel lateral: chat AO LADO do canvas ---------- */
+
+  const panel = document.getElementById('chat-panel');
+  const panelContent = panel ? panel.querySelector('.panel-content') : null;
+  if (panel) E.ui.initPanelResize(panel, 'estudio-chat-w');
+
+  E.chat.isOpen = function () {
+    return !!panel && !panel.classList.contains('hidden');
+  };
+
+  E.chat.close = function () {
+    if (!E.chat.isOpen()) return;
+    panel.classList.add('hidden');
+    const b = document.getElementById('tool-chat');
+    if (b) b.classList.remove('active');
+  };
+
+  E.chat.togglePanel = async function () {
+    if (!panel) return;
+    if (E.chat.isOpen()) {
+      E.chat.close();
+      return;
+    }
+    const st = E.canvas.getState();
+    if (!st.project) return;
+    [E.schedule, E.brand, E.notes, E.browser].forEach((m) => {
+      if (m && m.isOpen && m.isOpen() && m.close) m.close();
+    });
+    panel.classList.remove('hidden');
+    E.ui.applyPanelWidth(panel, 'estudio-chat-w');
+    const b = document.getElementById('tool-chat');
+    if (b) b.classList.add('active');
+    await E.chat.render(panelContent);
+    // o projeto aberto entra como base da conversa (se o chat estava solto)
+    if (current && !current.projectId) {
+      current.projectId = st.project.id;
+      persist(current);
+      renderHead();
+      E.ui.toast('A IA agora conversa com "' + (st.project.name || 'o projeto') + '" como base');
+    }
+  };
+
+  const toolChatBtn = document.getElementById('tool-chat');
+  if (toolChatBtn) toolChatBtn.addEventListener('click', E.chat.togglePanel);
 })();

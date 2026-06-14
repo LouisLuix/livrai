@@ -262,6 +262,7 @@
     card.appendChild(out);
     content.appendChild(card);
 
+    if (E.drive && E.drive.renderBlock) E.drive.renderBlock(content);
     if (E.cloudsync && E.cloudsync.renderBlock) E.cloudsync.renderBlock(content);
     if (E.share && E.share.renderLinksBlock) E.share.renderLinksBlock(content);
     content.appendChild(perksBlock());

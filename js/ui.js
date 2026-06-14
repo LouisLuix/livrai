@@ -135,6 +135,19 @@
     m.className = 'ctx-menu';
     m.id = 'ctx-menu';
     entries.forEach((en) => {
+      if (en.separator) {
+        const sep = document.createElement('div');
+        sep.className = 'ctx-sep';
+        m.appendChild(sep);
+        return;
+      }
+      if (en.header) {
+        const h = document.createElement('div');
+        h.className = 'ctx-header';
+        h.textContent = en.header;
+        m.appendChild(h);
+        return;
+      }
       const b = document.createElement('button');
       if (en.icon) b.insertAdjacentHTML('beforeend', E.icon(en.icon));
       const sp = document.createElement('span');
@@ -168,7 +181,7 @@
 
   /* Painéis laterais redimensionáveis (arrasta a borda esquerda) */
   function clampPanelWidth(w) {
-    return Math.min(Math.round(window.innerWidth * 0.7), Math.max(280, w));
+    return Math.min(Math.round(window.innerWidth * 0.8), Math.max(300, w));
   }
 
   E.ui.initPanelResize = function (panel, storageKey) {
@@ -181,18 +194,26 @@
       active = true;
       startX = e.clientX;
       startW = panel.getBoundingClientRect().width;
-      rz.setPointerCapture(e.pointerId);
       e.preventDefault();
-    });
-    rz.addEventListener('pointermove', (e) => {
-      if (!active) return;
-      panel.style.width = clampPanelWidth(startW + (startX - e.clientX)) + 'px';
-    });
-    rz.addEventListener('pointerup', () => {
-      if (!active) return;
-      active = false;
-      const w = parseInt(panel.style.width, 10);
-      if (w) localStorage.setItem(storageKey, String(w));
+      // véu por cima de TUDO (inclusive webview) — o arrasto nunca escapa
+      const veil = document.createElement('div');
+      veil.style.cssText = 'position:fixed;inset:0;z-index:99999;cursor:col-resize;';
+      document.body.appendChild(veil);
+      document.body.classList.add('panel-resizing');
+      const onMove = (ev) => {
+        panel.style.width = clampPanelWidth(startW + (startX - ev.clientX)) + 'px';
+      };
+      const onUp = () => {
+        active = false;
+        veil.remove();
+        document.body.classList.remove('panel-resizing');
+        window.removeEventListener('pointermove', onMove, true);
+        window.removeEventListener('pointerup', onUp, true);
+        const w = parseInt(panel.style.width, 10);
+        if (w) localStorage.setItem(storageKey, String(w));
+      };
+      window.addEventListener('pointermove', onMove, true);
+      window.addEventListener('pointerup', onUp, true);
     });
   };
 
