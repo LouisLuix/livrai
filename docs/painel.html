@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quem está usando — LIVRAI</title>
+  <meta name="description" content="Instalações ativas e downloads do LIVRAI, ao vivo.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff5c26' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M4 4h7v7H4zM13 13h7v7h-7zM13 4l7 7M4 13l7 7'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#0a0a0b; --panel:#131316; --panel-2:#1a1a1f; --line:#26262c; --text:#e8e8ec; --muted:#85858d; --accent:#ff5c26; --green:#34d399; }
+    * { box-sizing: border-box; margin: 0; }
+    body { background: var(--bg); color: var(--text); font: 15px/1.6 Inter, system-ui, sans-serif; min-height: 100vh; }
+    .mono { font-family: 'IBM Plex Mono', monospace; }
+    header { display: flex; align-items: center; gap: 10px; padding: 22px clamp(20px, 5vw, 64px); }
+    .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); }
+    .brand b { font-family: 'Space Grotesk', sans-serif; letter-spacing: .06em; }
+    .spacer { flex: 1; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; background: var(--accent); border: none; border-radius: 10px;
+      color: #14120a; font: inherit; font-size: 14px; font-weight: 600; padding: 9px 18px; text-decoration: none; }
+    main { padding: 10px clamp(20px, 5vw, 64px) 80px; max-width: 1100px; margin: 0 auto; }
+    h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(28px, 4.5vw, 44px); margin: 18px 0 6px; }
+    .sub { color: var(--muted); margin-bottom: 30px; }
+    .live { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); margin-bottom: 26px; }
+    .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(52,211,153,.6); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(52,211,153,.5); } 70% { box-shadow: 0 0 0 7px rgba(52,211,153,0); } 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); } }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 40px; }
+    .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; }
+    .stat .n { font-family: 'Space Grotesk', sans-serif; font-size: 38px; line-height: 1.1; }
+    .stat .n.on { color: var(--green); }
+    .stat .lbl { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    h2 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; margin: 0 0 14px; }
+    .row { display: flex; align-items: center; gap: 14px; padding: 13px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex: none; }
+    .dot.on { background: var(--green); }
+    .row .os { font-weight: 600; min-width: 78px; }
+    .row .tag { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; }
+    .row .when { margin-left: auto; color: var(--muted); font-size: 13px; }
+    .row .opens { color: var(--muted); font-size: 12px; }
+    #empty, #loading { color: var(--muted); text-align: center; padding: 50px 0; }
+    .split { display: grid; grid-template-columns: 1fr; gap: 36px; }
+    @media (min-width: 860px) { .split { grid-template-columns: 1.4fr 1fr; } }
+    .dl { display: flex; align-items: baseline; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--line); }
+    .dl:last-child { border-bottom: none; }
+    .dl .v { color: var(--muted); }
+    .dl .c { font-family: 'IBM Plex Mono', monospace; }
+    footer { color: var(--muted); font-size: 13px; text-align: center; padding: 30px; }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="https://louisluix.github.io/livrai/">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff5c26" stroke-width="1.8" stroke-linecap="round"><path d="M4 4h7v7H4zM13 13h7v7h-7zM13 4l7 7M4 13l7 7"/></svg>
+      <b>LIVRAI</b>
+    </a>
+    <span class="spacer"></span>
+    <a class="btn" href="https://github.com/LouisLuix/livrai/releases/latest">Baixar o app</a>
+  </header>
+  <main>
+    <h1>Quem está usando</h1>
+    <p class="sub">Instalações ativas e downloads do LIVRAI — dados anônimos (só sistema, versão e contadores), atualizando ao vivo.</p>
+    <div class="live"><span class="pulse"></span> ao vivo · atualizado <span id="updated">agora</span></div>
+
+    <div class="cards">
+      <div class="stat"><div class="n on" id="s-online">—</div><div class="lbl">online agora</div></div>
+      <div class="stat"><div class="n" id="s-today">—</div><div class="lbl">ativos hoje (24h)</div></div>
+      <div class="stat"><div class="n" id="s-week">—</div><div class="lbl">ativos (7 dias)</div></div>
+      <div class="stat"><div class="n" id="s-installs">—</div><div class="lbl">instalações no total</div></div>
+      <div class="stat"><div class="n" id="s-downloads">—</div><div class="lbl">downloads (GitHub)</div></div>
+    </div>
+
+    <div class="split">
+      <section>
+        <h2>Sessões recentes</h2>
+        <div id="loading">Carregando…</div>
+        <div id="empty" hidden>Ninguém ativo ainda — assim que alguém abrir o app, aparece aqui.</div>
+        <div id="list"></div>
+      </section>
+      <section>
+        <h2>Downloads por arquivo</h2>
+        <div id="downloads">Carregando…</div>
+      </section>
+    </div>
+  </main>
+  <footer>LIVRAI · feito livre por <a href="https://instagram.com/luisluix" target="_blank" rel="noopener">@luisluix</a> · código aberto no <a href="https://github.com/LouisLuix/livrai" target="_blank" rel="noopener">GitHub</a></footer>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: 'AIzaSyCV3zo_rMbu0yTbT51NsHFr3Jyx438J-eY',
+      authDomain: 'livrai-e97aa.firebaseapp.com',
+      projectId: 'livrai-e97aa',
+    });
+    const db = firebase.firestore();
+
+    const MIN = 60e3, HOUR = 3600e3, DAY = 24 * HOUR;
+    const ONLINE = 15 * MIN; // "online agora" = visto nos últimos 15 min
+
+    const $ = (id) => document.getElementById(id);
+    let rows = []; // sessões em memória, para re-renderizar o "visto há X"
+
+    function osLabel(o) {
+      return { windows: 'Windows', mac: 'Mac', linux: 'Linux' }[o] || 'Outro';
+    }
+    function ago(ms) {
+      if (!ms) return '—';
+      const d = Date.now() - ms;
+      if (d < MIN) return 'agora mesmo';
+      if (d < HOUR) return 'há ' + Math.floor(d / MIN) + ' min';
+      if (d < DAY) return 'há ' + Math.floor(d / HOUR) + ' h';
+      return 'há ' + Math.floor(d / DAY) + ' dias';
+    }
+    function stamp() {
+      $('updated').textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function render() {
+      const now = Date.now();
+      let online = 0, today = 0, week = 0;
+      rows.forEach((r) => {
+        const d = now - r.last;
+        if (d < ONLINE) online++;
+        if (d < DAY) today++;
+        if (d < 7 * DAY) week++;
+      });
+      $('s-online').textContent = online;
+      $('s-today').textContent = today;
+      $('s-week').textContent = week;
+
+      const list = $('list');
+      list.innerHTML = '';
+      const recent = rows.filter((r) => now - r.last < 7 * DAY);
+      $('loading').hidden = true;
+      $('empty').hidden = recent.length > 0;
+      recent.forEach((r) => {
+        const on = now - r.last < ONLINE;
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML =
+          '<span class="dot' + (on ? ' on' : '') + '"></span>' +
+          '<span class="os">' + osLabel(r.os) + '</span>' +
+          '<span class="tag">v' + (r.version || '?') + '</span>' +
+          '<span class="tag">' + (r.channel === 'web' ? 'web' : 'app') + '</span>' +
+          '<span class="opens">' + (r.opens || 1) + ' aberturas</span>' +
+          '<span class="when">' + (on ? 'online' : 'visto ' + ago(r.last)) + '</span>';
+        list.appendChild(row);
+      });
+      stamp();
+    }
+
+    // Instalações ao vivo — as mais recentes primeiro (limite seguro de leitura)
+    db.collection('installs').orderBy('lastSeen', 'desc').limit(500).onSnapshot(
+      (snap) => {
+        rows = snap.docs.map((d) => {
+          const x = d.data();
+          const last = x.lastSeen && x.lastSeen.toMillis ? x.lastSeen.toMillis() : 0;
+          return { os: x.os, version: x.version, channel: x.channel, opens: x.opens, last };
+        }).filter((r) => r.last);
+        render();
+      },
+      () => { $('loading').textContent = 'Não consegui carregar agora.'; }
+    );
+
+    // Total de instalações (contagem barata, sem ler tudo)
+    async function refreshCount() {
+      try {
+        const agg = await db.collection('installs').count().get();
+        $('s-installs').textContent = agg.data().count;
+      } catch (_) {}
+    }
+
+    // Downloads do GitHub (público, com CORS) — total + por arquivo
+    async function refreshDownloads() {
+      try {
+        const r = await fetch('https://api.github.com/repos/LouisLuix/livrai/releases?per_page=100');
+        if (!r.ok) return;
+        const rels = await r.json();
+        let total = 0;
+        const byFile = [];
+        rels.forEach((rel) => (rel.assets || []).forEach((a) => {
+          total += a.download_count;
+          if (a.download_count > 0) byFile.push({ name: a.name, c: a.download_count });
+        }));
+        $('s-downloads').textContent = total;
+        byFile.sort((a, b) => b.c - a.c);
+        const box = $('downloads');
+        box.innerHTML = byFile.length ? '' : '<span style="color:var(--muted)">Sem downloads ainda.</span>';
+        byFile.forEach((f) => {
+          const el = document.createElement('div');
+          el.className = 'dl';
+          el.innerHTML = '<span class="v">' + f.name + '</span><span class="c">' + f.c + '</span>';
+          box.appendChild(el);
+        });
+      } catch (_) {}
+    }
+
+    refreshCount();
+    refreshDownloads();
+    setInterval(render, 30e3);          // reescreve "visto há X" e recalcula online
+    setInterval(refreshCount, 2 * MIN);  // total de instalações
+    setInterval(refreshDownloads, 5 * MIN); // downloads do GitHub
+  </script>
+</body>
+</html>

@@ -39,5 +39,23 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+
+    // Ping de abertura: um doc anônimo por máquina (installs/{uid}), só com
+    // versão/sistema/contadores — nada pessoal. Cada um só escreve o próprio
+    // doc; a leitura é pública (alimenta o painel /painel.html), mas como os
+    // dados são anônimos, não expõe ninguém.
+    match /installs/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(
+             ['version', 'os', 'channel', 'firstSeen', 'lastSeen', 'opens'])
+        && request.resource.data.version is string
+        && request.resource.data.version.size() <= 20
+        && request.resource.data.os is string
+        && request.resource.data.os.size() <= 12
+        && request.resource.data.channel is string
+        && request.resource.data.channel.size() <= 12;
+    }
   }
 }
